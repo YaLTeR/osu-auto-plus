@@ -9,3 +9,7 @@ After building the client (I used either the `Debug` or the `PublicNoUpdate` con
 ## What's osu!auto+?
 
 osu!auto+ is a rewrite of the built-in Auto mod which attempts to obtain the highest possible scores on 2B maps, which the standard Auto does really poorly on. Additionally, osu!auto+ includes somewhat customizable cursor dancing and cursor trail tweaks. You can watch it in action in [this YouTube playlist](https://www.youtube.com/playlist?list=PLZnZoQzA8hx4xrr6yJ1nA5gpqVwqBLHun).
+
+# Spline
+
+The `Spline` folder contains the source code for `Spline.dll`. It's separated out because when I was adding spline interpolation I had this homework assignment with some necessary linear algebra laying around, so I just re-used the code. Thus the code quality is probably sub-ideal. Sorry for inconvenience.
