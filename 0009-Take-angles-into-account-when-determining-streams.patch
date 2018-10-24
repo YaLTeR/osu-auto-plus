@@ -1,0 +1,65 @@
+From da860a3183b043bc104d2c227247240de78508d2 Mon Sep 17 00:00:00 2001
+From: Ivan Molodetskikh <yalterz@gmail.com>
+Date: Wed, 7 Dec 2016 22:02:15 +0300
+Subject: [PATCH 09/28] Take angles into account when determining streams.
+
+---
+ .../Play/Rulesets/Osu/RulesetOsu_Autoplay.cs  | 21 +++++++++++++++++--
+ 1 file changed, 19 insertions(+), 2 deletions(-)
+
+diff --git a/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs b/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
+index e1a2b76..765e08f 100644
+--- a/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
++++ b/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
+@@ -1098,6 +1098,7 @@ namespace osu.GameModes.Play.Rulesets.Osu
+                 const int TIME_TOO_CLOSE = 10;
+                 double STREAM_MIN_DISTANCE_SQ = 25; // TODO: tune.
+                 double STREAM_MAX_DISTANCE_SQ = 8490; // TODO: tune.
++                double STREAM_MAX_COSANGLE = -0.5; // TODO: tune.
+                 double SLIDER_DERIVATIVE_FACTOR = ConfigManager.sAutoPlusSliderSpeedFactor;
+ 
+                 bool FOLLOW_SLIDERS = (ConfigManager.sAutoPlusType != AutoPlusType.Normal);
+@@ -1171,6 +1172,20 @@ namespace osu.GameModes.Play.Rulesets.Osu
+                             return Math.Pow((y.frame.mouseX - x.frame.mouseX), 2) + Math.Pow((y.frame.mouseY - x.frame.mouseY), 2);
+                         };
+ 
++                        Func<FrameWithType, FrameWithType, FrameWithType, double> cosBetween = (x, y, z) =>
++                        {
++                            var vx = new Vector2(x.frame.mouseX, x.frame.mouseY);
++                            var vy = new Vector2(y.frame.mouseX, y.frame.mouseY);
++                            var vz = new Vector2(z.frame.mouseX, z.frame.mouseY);
++
++                            var v1 = vx - vy;
++                            var v2 = vz - vy;
++                            v1.Normalize();
++                            v2.Normalize();
++
++                            return Vector2.Dot(v1, v2);
++                        };
++
+                         if (i < frames.Count - 2
+                             && (frames[i + 1].slider == null || frames[i + 2].slider != frames[i + 1].slider)
+                             && frames[i + 2].type != ObjectType.SPIN
+@@ -1178,7 +1193,8 @@ namespace osu.GameModes.Play.Rulesets.Osu
+                             && distanceSq(frames[i + 2], frames[i + 1]) >= STREAM_MIN_DISTANCE_SQ
+                             && distanceSq(frames[i + 2], frames[i + 1]) <= STREAM_MAX_DISTANCE_SQ
+                             && distanceSq(frames[i + 1], frames[i]) >= STREAM_MIN_DISTANCE_SQ
+-                            && distanceSq(frames[i + 1], frames[i]) <= STREAM_MAX_DISTANCE_SQ)
++                            && distanceSq(frames[i + 1], frames[i]) <= STREAM_MAX_DISTANCE_SQ
++                            && cosBetween(frames[i], frames[i + 1], frames[i + 2]) <= STREAM_MAX_COSANGLE)
+                         {
+                             var timeBetweenObjects = frames[i + 1].frame.time - frames[i].frame.time;
+ 
+@@ -1192,7 +1208,8 @@ namespace osu.GameModes.Play.Rulesets.Osu
+                                 && frames[j + 1].type != ObjectType.SPIN
+                                 && Math.Abs((frames[j + 1].frame.time - frames[j].frame.time) - timeBetweenObjects) < 2
+                                 && distanceSq(frames[j + 1], frames[j]) >= STREAM_MIN_DISTANCE_SQ
+-                                && distanceSq(frames[j + 1], frames[j]) <= STREAM_MAX_DISTANCE_SQ)
++                                && distanceSq(frames[j + 1], frames[j]) <= STREAM_MAX_DISTANCE_SQ
++                                && cosBetween(frames[j - 1], frames[j], frames[j + 1]) <= STREAM_MAX_COSANGLE)
+                             {
+                                 points.Add(new PointWithTime(frames[j].frame));
+                                 ++j;
+-- 
+2.19.1
+

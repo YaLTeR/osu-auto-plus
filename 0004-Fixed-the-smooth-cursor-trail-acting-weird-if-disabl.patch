@@ -1,0 +1,36 @@
+From d52c245852270f34028b99d3fca43a282c19b774 Mon Sep 17 00:00:00 2001
+From: Ivan Molodetskikh <yalterz@gmail.com>
+Date: Wed, 7 Dec 2016 08:32:26 +0300
+Subject: [PATCH 04/28] Fixed the smooth cursor trail acting weird if disabled
+ and then enabled.
+
+---
+ osu!/Graphics/Renderers/CursorTrailRenderer.cs | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/osu!/Graphics/Renderers/CursorTrailRenderer.cs b/osu!/Graphics/Renderers/CursorTrailRenderer.cs
+index 38eaaff..7fe0e5c 100644
+--- a/osu!/Graphics/Renderers/CursorTrailRenderer.cs
++++ b/osu!/Graphics/Renderers/CursorTrailRenderer.cs
+@@ -70,7 +70,7 @@ namespace osu.Graphics.Renderers
+             float fadeTime = fadeClock + 1f;
+ 
+             if (ConfigManager.sTrailSmooth)
+-                fadeTime = fadeClock + 0.4f;
++                fadeTime = fadeClock + 0.8f;
+ 
+             vertexBuffer.Vertices[vertexIndex].Position = offset + new Vector2(-drawSize / 2, -drawSize / 2);
+             vertexBuffer.Vertices[vertexIndex].TexturePosition = new Vector2(0, 0);
+@@ -144,9 +144,6 @@ namespace osu.Graphics.Renderers
+ 
+             fadeClock = (float)((GameBase.Time - timeOffset) / 500.0);
+ 
+-            if (ConfigManager.sTrailSmooth)
+-                fadeClock = (GameBase.Time - timeOffset) / 1000.0f;
+-
+             int fadeClockResetThreshold = (GameBase.IdleTime > 60000 || !GameBase.Instance.IsActive) ? 10000 : 1000000;
+             if (fadeClock > fadeClockResetThreshold)
+                 ResetTime();
+-- 
+2.19.1
+

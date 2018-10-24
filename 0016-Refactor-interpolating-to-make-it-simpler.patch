@@ -1,0 +1,478 @@
+From 76fc24b3c2c12b20b4add28e246ca8ff9c7c919c Mon Sep 17 00:00:00 2001
+From: Ivan Molodetskikh <yalterz@gmail.com>
+Date: Mon, 26 Dec 2016 15:11:34 +0300
+Subject: [PATCH 16/28] Refactor interpolating to make it simpler
+
+---
+ .../Play/Rulesets/Osu/RulesetOsu_Autoplay.cs  | 431 ++++++++++--------
+ 1 file changed, 245 insertions(+), 186 deletions(-)
+
+diff --git a/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs b/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
+index 2e39350..75257cd 100644
+--- a/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
++++ b/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
+@@ -87,7 +87,7 @@ namespace osu.GameModes.Play.Rulesets.Osu
+ 
+             return index;
+         }
+-        
++
+         private static int FindInsertionIndex(List<FrameWithType> frames, FrameWithType frame)
+         {
+             int index = frames.BinarySearch(frame, frameWithTypeComparator);
+@@ -240,6 +240,237 @@ namespace osu.GameModes.Play.Rulesets.Osu
+             }
+         }
+ 
++        private bool IsCovered(List<IInterpolator> interpolators, List<FrameWithType> frames, int index_from)
++        {
++            if (index_from < 0 || index_from >= frames.Count - 1)
++                throw new ArgumentOutOfRangeException("index_from", index_from, "index_from has to be between 0 and frames.Count - 2.");
++
++            var a = frames[index_from].frame.time;
++            var b = frames[index_from + 1].frame.time;
++
++            foreach (var interp in interpolators)
++            {
++                if (interp.StartTime <= a && interp.EndTime >= b)
++                    return true;
++            }
++
++            return false;
++        }
++
++        private void InterpFollowSliders(List<FrameWithType> frames, List<IInterpolator> interpolators)
++        {
++            for (int i = 0; i < frames.Count - 1; ++i)
++            {
++                if (IsCovered(interpolators, frames, i))
++                    continue;
++
++                if (frames[i].slider != null && frames[i + 1].slider == frames[i].slider)
++                {
++                    int j = i + 1;
++                    while (j < frames.Count - 1
++                        && !IsCovered(interpolators, frames, j)
++                        && frames[j + 1].slider == frames[j].slider)
++                        ++j;
++
++                    interpolators.Add(new SliderFollowInterpolator(frames[i].frame.time, frames[j].frame.time, frames[i].slider));
++                    i = j - 1;
++                }
++            }
++        }
++
++        private void InterpSpinners(List<FrameWithType> frames, List<IInterpolator> interpolators)
++        {
++            for (int i = 0; i < frames.Count - 1; ++i)
++            {
++                if (IsCovered(interpolators, frames, i))
++                    continue;
++
++                if (frames[i].type == ObjectType.SPIN && frames[i + 1].type == ObjectType.SPIN)
++                {
++                    var points = new List<PointWithTime>();
++                    points.Add(new PointWithTime(frames[i].frame));
++                    points.Add(new PointWithTime(frames[i + 1].frame));
++
++                    int j = i + 2;
++                    while (j < frames.Count
++                        && !IsCovered(interpolators, frames, j - 1)
++                        && frames[j].type == ObjectType.SPIN)
++                    {
++                        points.Add(new PointWithTime(frames[j].frame));
++                        ++j;
++                    }
++
++                    interpolators.Add(new LinearInterpolator(points));
++                    i = j - 2;
++                }
++            }
++        }
++
++        private void InterpCloseFrames(List<FrameWithType> frames, List<IInterpolator> interpolators)
++        {
++            const double SPLINE_DERIVATIVE_MAX = 5;
++
++            Func<FrameWithType, FrameWithType, double> derivative = (x, y) =>
++            {
++                var t = Math.Max(y.frame.time - x.frame.time, 1);
++                var vx = new Vector2(x.frame.mouseX, x.frame.mouseY);
++                var vy = new Vector2(y.frame.mouseX, y.frame.mouseY);
++
++                return (vy - vx).Length() / t;
++            };
++
++            for (int i = 0; i < frames.Count - 1; ++i)
++            {
++                if (IsCovered(interpolators, frames, i))
++                    continue;
++
++                if (frames[i].frame.time == frames[i + 1].frame.time || derivative(frames[i], frames[i + 1]) > SPLINE_DERIVATIVE_MAX)
++                {
++                    var points = new List<PointWithTime>();
++                    points.Add(new PointWithTime(frames[i].frame));
++                    points.Add(new PointWithTime(frames[i + 1].frame));
++
++                    int j = i + 2;
++                    while (j < frames.Count
++                        && !IsCovered(interpolators, frames, j - 1)
++                        && (frames[j - 1].frame.time == frames[j].frame.time || derivative(frames[j - 1], frames[j]) > SPLINE_DERIVATIVE_MAX))
++                    {
++                        points.Add(new PointWithTime(frames[j].frame));
++                        ++j;
++                    }
++
++                    interpolators.Add(new LinearInterpolator(points));
++                    i = j - 2;
++                    continue;
++                }
++            }
++        }
++
++        private void InterpStreams(List<FrameWithType> frames, List<IInterpolator> interpolators)
++        {
++            double STREAM_MIN_DISTANCE_SQ = 25; // TODO: tune.
++            double STREAM_MAX_DISTANCE_SQ = 4000; // TODO: tune.
++            double STREAM_MAX_COSANGLE = -0.5; // TODO: tune.
++
++            Func<FrameWithType, FrameWithType, double> distanceSq = (x, y) =>
++            {
++                return Math.Pow((y.frame.mouseX - x.frame.mouseX), 2) + Math.Pow((y.frame.mouseY - x.frame.mouseY), 2);
++            };
++
++            Func<FrameWithType, FrameWithType, FrameWithType, double> cosBetween = (x, y, z) =>
++            {
++                var vx = new Vector2(x.frame.mouseX, x.frame.mouseY);
++                var vy = new Vector2(y.frame.mouseX, y.frame.mouseY);
++                var vz = new Vector2(z.frame.mouseX, z.frame.mouseY);
++
++                var v1 = vx - vy;
++                var v2 = vz - vy;
++                v1.Normalize();
++                v2.Normalize();
++
++                return Vector2.Dot(v1, v2);
++            };
++
++            for (int i = 0; i < frames.Count - 2; ++i)
++            {
++                if (IsCovered(interpolators, frames, i) || IsCovered(interpolators, frames, i + 1))
++                    continue;
++
++                if (Math.Abs((frames[i + 2].frame.time - frames[i + 1].frame.time) - (frames[i + 1].frame.time - frames[i].frame.time)) < 2
++                    && distanceSq(frames[i + 2], frames[i + 1]) >= STREAM_MIN_DISTANCE_SQ
++                    && distanceSq(frames[i + 2], frames[i + 1]) <= STREAM_MAX_DISTANCE_SQ
++                    && distanceSq(frames[i + 1], frames[i]) >= STREAM_MIN_DISTANCE_SQ
++                    && distanceSq(frames[i + 1], frames[i]) <= STREAM_MAX_DISTANCE_SQ
++                    && cosBetween(frames[i], frames[i + 1], frames[i + 2]) <= STREAM_MAX_COSANGLE)
++                {
++                    var timeBetweenObjects = frames[i + 1].frame.time - frames[i].frame.time;
++
++                    var points = new List<PointWithTime>();
++                    points.Add(new PointWithTime(frames[i].frame));
++                    points.Add(new PointWithTime(frames[i + 1].frame));
++                    points.Add(new PointWithTime(frames[i + 2].frame));
++
++                    int j = i + 3;
++                    while (j < frames.Count
++                        && !IsCovered(interpolators, frames, j - 1)
++                        && Math.Abs((frames[j].frame.time - frames[j - 1].frame.time) - timeBetweenObjects) < 2
++                        && distanceSq(frames[j], frames[j - 1]) >= STREAM_MIN_DISTANCE_SQ
++                        && distanceSq(frames[j], frames[j - 1]) <= STREAM_MAX_DISTANCE_SQ
++                        && cosBetween(frames[j - 2], frames[j - 1], frames[j]) <= STREAM_MAX_COSANGLE)
++                    {
++                        points.Add(new PointWithTime(frames[j].frame));
++                        ++j;
++                    }
++
++                    interpolators.Add(new StreamInterpolator(points));
++                    i = j - 2;
++                    continue;
++                }
++            }
++        }
++
++        private void InterpRest(List<FrameWithType> frames, List<IInterpolator> interpolators)
++        {
++            Vector2 spinnerCentre = new Vector2(256, 192);
++
++            var previousFrameIndex = 0;
++
++            for (int i = 0; i < interpolators.Count; ++i)
++            {
++                var interp = interpolators[i];
++
++                if (interp.StartTime > frames[previousFrameIndex].frame.time)
++                {
++                    var j = previousFrameIndex;
++                    while (frames[j].frame.time < interp.StartTime)
++                        ++j;
++
++                    Debug.Assert(frames[j].frame.time == interp.StartTime);
++
++                    var points = new List<PointWithTime>();
++                    for (int k = previousFrameIndex; k <= j; ++k)
++                        points.Add(new PointWithTime(frames[k].frame));
++
++                    Vector2 startDerivative;
++                    if (i == 0)
++                    {
++                        // First hit object.
++                        startDerivative.X = (frames[previousFrameIndex].frame.mouseX - spinnerCentre.X) / 1000.0f;
++                        startDerivative.Y = (frames[previousFrameIndex].frame.mouseY - spinnerCentre.Y) / 1000.0f;
++                    }
++                    else
++                    {
++                        startDerivative = interpolators[i - 1].DerivativeAtEndTime();
++                    }
++
++                    if (ConfigManager.sAutoPlusUseSplineInterp)
++                        interpolators.Insert(i, new CubicSplineInterpolator(points, startDerivative, interp.DerivativeAtStartTime()));
++                    else
++                        interpolators.Insert(i, new LinearInterpolator(points));
++
++                    ++i;
++                }
++
++                while (previousFrameIndex != frames.Count - 1 && frames[previousFrameIndex + 1].frame.time <= interp.EndTime)
++                    ++previousFrameIndex;
++
++                Debug.Assert(frames[previousFrameIndex].frame.time == interp.EndTime);
++            }
++
++            // Cover the time from the end of the last interpolator to the end of the replay.
++            if (frames[frames.Count - 1].frame.time > frames[previousFrameIndex].frame.time)
++            {
++                var points = new List<PointWithTime>();
++                for (int k = previousFrameIndex; k < frames.Count; ++k)
++                    points.Add(new PointWithTime(frames[k].frame));
++
++                if (ConfigManager.sAutoPlusUseSplineInterp)
++                    interpolators.Add(new CubicSplineInterpolator(points, interpolators[interpolators.Count - 1].DerivativeAtEndTime(), new Vector2(0, 0)));
++                else
++                    interpolators.Add(new LinearInterpolator(points));
++            }
++        }
++
+         internal override void CreateAutoplayReplay()
+         {
+             InputManager.ReplayScore.Replay = new List<bReplayFrame>();
+@@ -1095,201 +1326,29 @@ namespace osu.GameModes.Play.Rulesets.Osu
+                 UInt32 currentSplinePoint = 0;
+ 
+                 const double STEP = 1000 / 144.0;
+-                const double SPLINE_DERIVATIVE_MAX = 5;
+-                double STREAM_MIN_DISTANCE_SQ = 25; // TODO: tune.
+-                double STREAM_MAX_DISTANCE_SQ = 4000; // TODO: tune.
+-                double STREAM_MAX_COSANGLE = -0.5; // TODO: tune.
+-                double SLIDER_DERIVATIVE_FACTOR = ConfigManager.sAutoPlusSliderSpeedFactor;
+ 
+                 List<IInterpolator> interpolators = new List<IInterpolator>();
+ 
+                 if (ConfigManager.sAutoPlusInterpolate)
+                 {
+-                    for (int i = 0; i < frames.Count - 1; ++i)
+-                    {
+-                        // Slider following.
+-                        if (ConfigManager.sAutoPlusFollowSliders)
+-                        {
+-                            if (frames[i].slider != null && frames[i + 1].slider == frames[i].slider)
+-                            {
+-                                int j = i + 1;
+-                                while (j < frames.Count - 1 && frames[j + 1].slider == frames[j].slider)
+-                                    ++j;
+-
+-                                interpolators.Add(new SliderFollowInterpolator(frames[i].frame.time, frames[j].frame.time, frames[i].slider));
+-                                i = j - 1;
+-                                continue;
+-                            }
+-                        }
+-
+-                        // Spinners.
+-                        if (frames[i].type == ObjectType.SPIN && frames[i + 1].type == ObjectType.SPIN)
+-                        {
+-                            var points = new List<PointWithTime>();
+-                            points.Add(new PointWithTime(frames[i].frame));
+-
+-                            int j = i + 1;
+-                            while (j < frames.Count - 1 && frames[j + 1].type == ObjectType.SPIN)
+-                            {
+-                                points.Add(new PointWithTime(frames[j].frame));
+-                                ++j;
+-                            }
+-                            points.Add(new PointWithTime(frames[j].frame));
+-
+-                            interpolators.Add(new LinearInterpolator(points));
+-                            i = j - 1;
+-                            continue;
+-                        }
+-
+-                        // Frames that are too close in time to each other.
+-                        Func<FrameWithType, FrameWithType, double> derivative = (x, y) =>
+-                        {
+-                            var t = Math.Max(y.frame.time - x.frame.time, 1);
+-                            var vx = new Vector2(x.frame.mouseX, x.frame.mouseY);
+-                            var vy = new Vector2(y.frame.mouseX, y.frame.mouseY);
+-
+-                            return (vy - vx).Length() / t;
+-                        };
+-
+-                        if (frames[i + 1].frame.time == frames[i].frame.time
+-                            || derivative(frames[i], frames[i + 1]) > SPLINE_DERIVATIVE_MAX)
+-                        {
+-                            var points = new List<PointWithTime>();
+-                            points.Add(new PointWithTime(frames[i].frame));
+-
+-                            int j = i + 1;
+-                            while (j < frames.Count - 1
+-                                && (!ConfigManager.sAutoPlusFollowSliders || (frames[j].slider == null || frames[j + 1].slider != frames[j].slider))
+-                                && frames[j + 1].type != ObjectType.SPIN
+-                                && (frames[j + 1].frame.time == frames[j].frame.time
+-                                    || derivative(frames[j], frames[j + 1]) > SPLINE_DERIVATIVE_MAX))
+-                            {
+-                                points.Add(new PointWithTime(frames[j].frame));
+-                                ++j;
+-                            }
+-                            points.Add(new PointWithTime(frames[j].frame));
+-
+-                            interpolators.Add(new LinearInterpolator(points));
+-                            i = j - 1;
+-                            continue;
+-                        }
++                    // Make sure spinners aren't interpolated.
++                    InterpSpinners(frames, interpolators);
+ 
+-                        // Streams.
+-                        Func<FrameWithType, FrameWithType, double> distanceSq = (x, y) =>
+-                        {
+-                            return Math.Pow((y.frame.mouseX - x.frame.mouseX), 2) + Math.Pow((y.frame.mouseY - x.frame.mouseY), 2);
+-                        };
++                    // Slider following.
++                    if (ConfigManager.sAutoPlusFollowSliders)
++                        InterpFollowSliders(frames, interpolators);
+ 
+-                        Func<FrameWithType, FrameWithType, FrameWithType, double> cosBetween = (x, y, z) =>
+-                        {
+-                            var vx = new Vector2(x.frame.mouseX, x.frame.mouseY);
+-                            var vy = new Vector2(y.frame.mouseX, y.frame.mouseY);
+-                            var vz = new Vector2(z.frame.mouseX, z.frame.mouseY);
+-
+-                            var v1 = vx - vy;
+-                            var v2 = vz - vy;
+-                            v1.Normalize();
+-                            v2.Normalize();
+-
+-                            return Vector2.Dot(v1, v2);
+-                        };
+-
+-                        if (ConfigManager.sAutoPlusUseHalfCircleStreamInterp
+-                            && i < frames.Count - 2
+-                            && (!ConfigManager.sAutoPlusFollowSliders || (frames[i + 1].slider == null || frames[i + 2].slider != frames[i + 1].slider))
+-                            && frames[i + 2].type != ObjectType.SPIN
+-                            && Math.Abs((frames[i + 2].frame.time - frames[i + 1].frame.time) - (frames[i + 1].frame.time - frames[i].frame.time)) < 2
+-                            && distanceSq(frames[i + 2], frames[i + 1]) >= STREAM_MIN_DISTANCE_SQ
+-                            && distanceSq(frames[i + 2], frames[i + 1]) <= STREAM_MAX_DISTANCE_SQ
+-                            && distanceSq(frames[i + 1], frames[i]) >= STREAM_MIN_DISTANCE_SQ
+-                            && distanceSq(frames[i + 1], frames[i]) <= STREAM_MAX_DISTANCE_SQ
+-                            && cosBetween(frames[i], frames[i + 1], frames[i + 2]) <= STREAM_MAX_COSANGLE)
+-                        {
+-                            var timeBetweenObjects = frames[i + 1].frame.time - frames[i].frame.time;
+-
+-                            var points = new List<PointWithTime>();
+-                            points.Add(new PointWithTime(frames[i].frame));
+-                            points.Add(new PointWithTime(frames[i + 1].frame));
+-
+-                            int j = i + 2;
+-                            while (j < frames.Count - 1
+-                                && (!ConfigManager.sAutoPlusFollowSliders || (frames[j].slider == null || frames[j + 1].slider != frames[j].slider))
+-                                && frames[j + 1].type != ObjectType.SPIN
+-                                && Math.Abs((frames[j + 1].frame.time - frames[j].frame.time) - timeBetweenObjects) < 2
+-                                && distanceSq(frames[j + 1], frames[j]) >= STREAM_MIN_DISTANCE_SQ
+-                                && distanceSq(frames[j + 1], frames[j]) <= STREAM_MAX_DISTANCE_SQ
+-                                && cosBetween(frames[j - 1], frames[j], frames[j + 1]) <= STREAM_MAX_COSANGLE)
+-                            {
+-                                points.Add(new PointWithTime(frames[j].frame));
+-                                ++j;
+-                            }
+-                            points.Add(new PointWithTime(frames[j].frame));
++                    // Don't interpolate frames that are too close to each other:
++                    // this makes derivatives huge and breaks stuff.
++                    InterpCloseFrames(frames, interpolators);
+ 
+-                            interpolators.Add(new StreamInterpolator(points));
+-                            i = j - 1;
+-                            continue;
+-                        }
+-                    }
+-
+-                    interpolators.Sort(new InterpolatorComparer());
++                    // Streams.
++                    if (ConfigManager.sAutoPlusUseHalfCircleStreamInterp)
++                        InterpStreams(frames, interpolators);
+ 
+                     // Cover the rest of the replay.
+-                    var previousFrameIndex = 0;
+-
+-                    for (int i = 0; i < interpolators.Count; ++i)
+-                    {
+-                        var interp = interpolators[i];
+-
+-                        if (interp.StartTime > frames[previousFrameIndex].frame.time)
+-                        {
+-                            var j = previousFrameIndex;
+-                            while (frames[j].frame.time < interp.StartTime)
+-                                ++j;
+-
+-                            Debug.Assert(frames[j].frame.time == interp.StartTime);
+-
+-                            var points = new List<PointWithTime>();
+-                            for (int k = previousFrameIndex; k <= j; ++k)
+-                                points.Add(new PointWithTime(frames[k].frame));
+-
+-                            Vector2 startDerivative;
+-                            if (i == 0)
+-                            {
+-                                // First hit object.
+-                                startDerivative.X = (frames[previousFrameIndex].frame.mouseX - spinnerCentre.X) / 1000.0f;
+-                                startDerivative.Y = (frames[previousFrameIndex].frame.mouseY - spinnerCentre.Y) / 1000.0f;
+-                            }
+-                            else
+-                            {
+-                                startDerivative = interpolators[i - 1].DerivativeAtEndTime();
+-                            }
+-
+-                            if (ConfigManager.sAutoPlusUseSplineInterp)
+-                                interpolators.Insert(i, new CubicSplineInterpolator(points, startDerivative, interp.DerivativeAtStartTime()));
+-                            else
+-                                interpolators.Insert(i, new LinearInterpolator(points));
+-
+-                            ++i;
+-                        }
+-
+-                        while (previousFrameIndex != frames.Count - 1 && frames[previousFrameIndex + 1].frame.time <= interp.EndTime)
+-                            ++previousFrameIndex;
+-
+-                        Debug.Assert(frames[previousFrameIndex].frame.time == interp.EndTime);
+-                    }
+-
+-                    // Cover the time from the end of the last interpolator to the end of the replay.
+-                    if (frames[frames.Count - 1].frame.time > frames[previousFrameIndex].frame.time)
+-                    {
+-                        var points = new List<PointWithTime>();
+-                        for (int k = previousFrameIndex; k < frames.Count; ++k)
+-                            points.Add(new PointWithTime(frames[k].frame));
+-
+-                        if (ConfigManager.sAutoPlusUseSplineInterp)
+-                            interpolators.Add(new CubicSplineInterpolator(points, interpolators[interpolators.Count - 1].DerivativeAtEndTime(), new Vector2(0, 0)));
+-                        else
+-                            interpolators.Add(new LinearInterpolator(points));
+-                    }
++                    interpolators.Sort(new InterpolatorComparer());
++                    InterpRest(frames, interpolators);
+                 }
+                 else
+                 {
+-- 
+2.19.1
+

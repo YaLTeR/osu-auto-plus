@@ -1,0 +1,140 @@
+From 732d1c7b7491a32c4c7a9260b3242327c7a536a2 Mon Sep 17 00:00:00 2001
+From: Ivan Molodetskikh <yalterz@gmail.com>
+Date: Mon, 26 Dec 2016 11:24:11 +0300
+Subject: [PATCH 13/28] Introduce a stream half-circle border angle parameter.
+
+---
+ osu!/Configuration/ConfigManager.cs           |  2 +
+ osu!/GameModes/Options/Options.cs             |  5 +++
+ .../Interpolators/StreamInterpolator.cs       | 44 ++++++++++++++-----
+ 3 files changed, 39 insertions(+), 12 deletions(-)
+
+diff --git a/osu!/Configuration/ConfigManager.cs b/osu!/Configuration/ConfigManager.cs
+index 3f92ca2..2c0bf0a 100644
+--- a/osu!/Configuration/ConfigManager.cs
++++ b/osu!/Configuration/ConfigManager.cs
+@@ -197,6 +197,7 @@ namespace osu.Configuration
+         internal static Bindable<AutoPlusVersion> sAutoPlusVersion;
+         internal static BindableDouble sAutoPlusSliderSpeedFactor;
+         internal static BindableDouble sAutoPlusStreamSpeedFactor;
++        internal static BindableDouble sAutoPlusStreamHalfCircleBorderAngle;
+         internal static BindableBool sAutoPlusSaveReplayBeforePlaying;
+         internal static BindableBool sHideReplayInterface;
+         internal static BindableBool sForceFramerate;
+@@ -786,6 +787,7 @@ namespace osu.Configuration
+             sAutoPlusSaveReplayBeforePlaying = ReadBool(@"Auto+SaveReplayBeforePlaying", false);
+             sAutoPlusSliderSpeedFactor = ReadDouble(@"Auto+SliderSpeedFactor", 4.0);
+             sAutoPlusStreamSpeedFactor = ReadDouble(@"Auto+StreamSpeedFactor", 4.0);
++            sAutoPlusStreamHalfCircleBorderAngle = ReadDouble(@"Auto+StreamHalfCircleBorderAngle", 15.0);
+             sHideReplayInterface = ReadBool(@"HideReplayInterface", false);
+             sForceFramerate = new BindableBool();
+             sSynchronousLog = ReadBool(@"SynchronousLog", false);
+diff --git a/osu!/GameModes/Options/Options.cs b/osu!/GameModes/Options/Options.cs
+index c1d1fd3..a8e6697 100644
+--- a/osu!/GameModes/Options/Options.cs
++++ b/osu!/GameModes/Options/Options.cs
+@@ -907,6 +907,11 @@ namespace osu.GameModes.Options
+                                 if (double.TryParse(((OptionTextbox)sender).Textbox.Text, out val))
+                                     ConfigManager.sAutoPlusStreamSpeedFactor.Value = val;
+                             }),
++                            new OptionTextbox(@"Stream half-circle border angle (15)", ConfigManager.sAutoPlusStreamHalfCircleBorderAngle.ToString(), false, delegate(object sender, EventArgs e) {
++                                double val;
++                                if (double.TryParse(((OptionTextbox)sender).Textbox.Text, out val))
++                                    ConfigManager.sAutoPlusStreamHalfCircleBorderAngle.Value = val;
++                            }),
+                         }
+                     },
+ #if DEBUG || Release
+diff --git a/osu!/Helpers/Interpolators/StreamInterpolator.cs b/osu!/Helpers/Interpolators/StreamInterpolator.cs
+index a5f16b5..de98abe 100644
+--- a/osu!/Helpers/Interpolators/StreamInterpolator.cs
++++ b/osu!/Helpers/Interpolators/StreamInterpolator.cs
+@@ -35,6 +35,8 @@ namespace osu.Helpers.Interpolators
+             if (time < StartTime || time > EndTime)
+                 throw new ArgumentOutOfRangeException("time", time, "Time has to be between StartTime and EndTime.");
+ 
++            var BORDER_ANGLE = Math.Min(80.0, Math.Max(0.0, ConfigManager.sAutoPlusStreamHalfCircleBorderAngle)) * Math.PI / 180.0;
++
+             while (CurrentPointIndex != Points.Count && Points[CurrentPointIndex + 1].time <= time)
+                 ++CurrentPointIndex;
+ 
+@@ -46,46 +48,64 @@ namespace osu.Helpers.Interpolators
+ 
+             var progress = ((float)(time - Points[CurrentPointIndex].time)) / (Points[CurrentPointIndex + 1].time - Points[CurrentPointIndex].time);
+             bool facing = (CurrentPointIndex % 2) == 0;
+-            var angle = progress * Math.PI;
++            var angle = progress * (Math.PI - 2 * BORDER_ANGLE) + BORDER_ANGLE;
+             var posDifference = Points[CurrentPointIndex + 1].pos - Points[CurrentPointIndex].pos;
+ 
+             Vector2 posDifferenceRotated = new Vector2(-posDifference.Y, posDifference.X);
+             posDifferenceRotated.Normalize();
+ 
+-            var radius = posDifference.Length() / 2;
+-            var x = Math.Cos(angle) * -0.5 + 0.5;
+-            var y = Math.Sin(angle) * (facing ? 1 : -1) * radius;
++            var radius = (posDifference.Length() / 2) / Math.Cos(BORDER_ANGLE);
++            var x = (Math.Cos(angle) - Math.Cos(BORDER_ANGLE)) / (Math.Cos(Math.PI - BORDER_ANGLE) - Math.Cos(BORDER_ANGLE));
++            var y = (Math.Sin(angle) - Math.Sin(BORDER_ANGLE)) * radius * (facing ? 1 : -1);
+ 
+             return Points[CurrentPointIndex].pos + (posDifference * (float)x) + (posDifferenceRotated * (float)y);
+         }
+ 
+         public Vector2 DerivativeAtStartTime()
+         {
++            var BORDER_ANGLE = Math.Min(80.0, Math.Max(0.0, ConfigManager.sAutoPlusStreamHalfCircleBorderAngle)) * Math.PI / 180.0;
++
+             bool facing = (0 % 2) == 0;
++
+             var posDifference = Points[1].pos - Points[0].pos;
++            var len = posDifference.Length();
++            var radius = (posDifference.Length() / 2) / Math.Cos(BORDER_ANGLE);
++
++            posDifference.Normalize();
+ 
+             Vector2 posDifferenceRotated = new Vector2(-posDifference.Y, posDifference.X);
+-            posDifferenceRotated.Normalize();
+ 
+-            var radius = posDifference.Length() / 2;
+-            var yDerivative = (facing ? 1 : -1) * radius;
++            var xDerivative = (facing ? 1 : -1) * Math.Sin(BORDER_ANGLE);
++            var yDerivative = (facing ? 1 : -1) * Math.Cos(BORDER_ANGLE);
++
++            var derivative = (posDifference * (float)xDerivative + posDifferenceRotated * (float)yDerivative);
++            derivative.Normalize();
+ 
+-            return (posDifferenceRotated * (float)yDerivative * (float)ConfigManager.sAutoPlusStreamSpeedFactor.Value) / (Points[1].time - Points[0].time);
++            return (derivative * (float)len * (float)ConfigManager.sAutoPlusStreamSpeedFactor.Value) / (Points[1].time - Points[0].time);
+         }
+ 
+         public Vector2 DerivativeAtEndTime()
+         {
++            var BORDER_ANGLE = Math.Min(80.0, Math.Max(0.0, ConfigManager.sAutoPlusStreamHalfCircleBorderAngle)) * Math.PI / 180.0;
++
+             var index = Points.Count - 2;
+             bool facing = (index % 2) == 0;
++
+             var posDifference = Points[index + 1].pos - Points[index].pos;
++            var len = posDifference.Length();
++            var radius = (posDifference.Length() / 2) / Math.Cos(BORDER_ANGLE);
++
++            posDifference.Normalize();
+ 
+             Vector2 posDifferenceRotated = new Vector2(-posDifference.Y, posDifference.X);
+-            posDifferenceRotated.Normalize();
+ 
+-            var radius = posDifference.Length() / 2;
+-            var yDerivative = -1 * (facing ? 1 : -1) * radius;
++            var xDerivative = (facing ? 1 : -1) * Math.Sin(Math.PI - BORDER_ANGLE);
++            var yDerivative = (facing ? 1 : -1) * Math.Cos(Math.PI - BORDER_ANGLE);
++
++            var derivative = (-posDifference * (float)xDerivative + posDifferenceRotated * (float)yDerivative);
++            derivative.Normalize();
+ 
+-            return (posDifferenceRotated * (float)yDerivative * (float)ConfigManager.sAutoPlusStreamSpeedFactor.Value) / (Points[index + 1].time - Points[index].time);
++            return (derivative * (float)len * (float)ConfigManager.sAutoPlusStreamSpeedFactor.Value) / (Points[index + 1].time - Points[index].time);
+         }
+     }
+ }
+-- 
+2.19.1
+

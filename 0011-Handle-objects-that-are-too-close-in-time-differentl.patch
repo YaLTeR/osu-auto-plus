@@ -1,0 +1,92 @@
+From 85db7c2e0dcdf643497411bf89a9014fcfc96503 Mon Sep 17 00:00:00 2001
+From: Ivan Molodetskikh <yalterz@gmail.com>
+Date: Wed, 7 Dec 2016 23:10:01 +0300
+Subject: [PATCH 11/28] Handle objects that are too close in time differently.
+
+---
+ .../Play/Rulesets/Osu/RulesetOsu_Autoplay.cs  | 17 +++++++++++---
+ .../Interpolators/LinearInterpolator.cs       | 22 ++++---------------
+ 2 files changed, 18 insertions(+), 21 deletions(-)
+
+diff --git a/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs b/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
+index ffb494f..3b16b05 100644
+--- a/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
++++ b/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
+@@ -1095,7 +1095,7 @@ namespace osu.GameModes.Play.Rulesets.Osu
+                 UInt32 currentSplinePoint = 0;
+ 
+                 const double STEP = 1000 / 144.0;
+-                const int TIME_TOO_CLOSE = 10;
++                const double SPLINE_DERIVATIVE_MAX = 5;
+                 double STREAM_MIN_DISTANCE_SQ = 25; // TODO: tune.
+                 double STREAM_MAX_DISTANCE_SQ = 4000; // TODO: tune.
+                 double STREAM_MAX_COSANGLE = -0.5; // TODO: tune.
+@@ -1145,7 +1145,17 @@ namespace osu.GameModes.Play.Rulesets.Osu
+                         }
+ 
+                         // Frames that are too close in time to each other.
+-                        if ((frames[i + 1].frame.time - frames[i].frame.time) < TIME_TOO_CLOSE)
++                        Func<FrameWithType, FrameWithType, double> derivative = (x, y) =>
++                        {
++                            var t = Math.Max(y.frame.time - x.frame.time, 1);
++                            var vx = new Vector2(x.frame.mouseX, x.frame.mouseY);
++                            var vy = new Vector2(y.frame.mouseX, y.frame.mouseY);
++
++                            return (vy - vx).Length() / t;
++                        };
++
++                        if (frames[i + 1].frame.time == frames[i].frame.time
++                            || derivative(frames[i], frames[i + 1]) > SPLINE_DERIVATIVE_MAX)
+                         {
+                             var points = new List<PointWithTime>();
+                             points.Add(new PointWithTime(frames[i].frame));
+@@ -1154,7 +1164,8 @@ namespace osu.GameModes.Play.Rulesets.Osu
+                             while (j < frames.Count - 1
+                                 && frames[j + 1].slider == null
+                                 && frames[j + 1].type != ObjectType.SPIN
+-                                && (frames[j + 1].frame.time - frames[j].frame.time) < TIME_TOO_CLOSE)
++                                && (frames[j + 1].frame.time == frames[j].frame.time
++                                    || derivative(frames[j], frames[j + 1]) > SPLINE_DERIVATIVE_MAX))
+                             {
+                                 points.Add(new PointWithTime(frames[j].frame));
+                                 ++j;
+diff --git a/osu!/Helpers/Interpolators/LinearInterpolator.cs b/osu!/Helpers/Interpolators/LinearInterpolator.cs
+index cf3ab85..cc5486a 100644
+--- a/osu!/Helpers/Interpolators/LinearInterpolator.cs
++++ b/osu!/Helpers/Interpolators/LinearInterpolator.cs
+@@ -35,28 +35,14 @@ namespace osu.Helpers.Interpolators
+ 
+         public Vector2 DerivativeAtStartTime()
+         {
+-            if (StartTime == EndTime)
+-                return new Vector2(0, 0);
+-
+-            int i = 1;
+-            while (Points[i].time == Points[0].time)
+-                ++i;
+-
+-            return (Points[i].pos - Points[0].pos) / (Points[i].time - Points[0].time);
++            var t = Math.Max(Points[1].time - Points[0].time, 1);
++            return (Points[1].pos - Points[0].pos) / t;
+         }
+ 
+         public Vector2 DerivativeAtEndTime()
+         {
+-            if (StartTime == EndTime)
+-                return new Vector2(0, 0);
+-
+-            var lastPoint = Points[Points.Count - 1];
+-
+-            int i = Points.Count - 2;
+-            while (Points[i].time == lastPoint.time)
+-                --i;
+-
+-            return (lastPoint.pos - Points[i].pos) / (lastPoint.time - Points[i].time);
++            var t = Math.Max(Points[Points.Count - 1].time - Points[Points.Count - 2].time, 1);
++            return (Points[Points.Count - 1].pos - Points[Points.Count - 2].pos) / t;
+         }
+     }
+ }
+-- 
+2.19.1
+

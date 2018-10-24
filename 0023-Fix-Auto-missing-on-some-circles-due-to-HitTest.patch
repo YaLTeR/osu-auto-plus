@@ -1,0 +1,82 @@
+From 690b2cbf565fb9af51cf24b51d405d4af8a09353 Mon Sep 17 00:00:00 2001
+From: Ivan Molodetskikh <yalterz@gmail.com>
+Date: Sat, 31 Dec 2016 14:47:07 +0300
+Subject: [PATCH 23/28] Fix Auto+ missing on some circles due to HitTest
+
+---
+ .../Play/Rulesets/Osu/RulesetOsu_Autoplay.cs  | 52 +++++++++++++++++++
+ 1 file changed, 52 insertions(+)
+
+diff --git a/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs b/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
+index d9d5393..647550b 100644
+--- a/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
++++ b/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
+@@ -918,6 +918,32 @@ namespace osu.GameModes.Play.Rulesets.Osu
+                                     break;
+                                 }
+ 
++                                if (canClick)
++                                {
++                                    // HitTest
++                                    foreach (HitObject t in hom)
++                                    {
++                                        if (t == h)
++                                            break;
++
++                                        var isHit = (t.IsType(HitObjectType.Slider) && t.HittableEndTime <= time)
++                                            || (t.IsType(HitObjectType.Spinner) && t.HittableEndTime <= time - 1)
++                                            || (!t.IsType(HitObjectType.Slider) && !t.IsType(HitObjectType.Spinner) && t.StartTime <= time);
++
++                                        // Note the '<' instead of '<=' here.
++                                        if (t.StartTime + hitObjectManager.HitWindow50 < time || isHit)
++                                            continue;
++
++                                        if (Vector2.DistanceSquared(h.Position, t.Position) <= hitObjectManager.HitObjectRadius * hitObjectManager.HitObjectRadius)
++                                        {
++                                            // TODO: if there's no point in time where we can click this object due to this check,
++                                            // we could try finding another click spot that's not the object's center.
++                                            canClick = false;
++                                            break;
++                                        }
++                                    }
++                                }
++
+                                 if (canClick)
+                                     break;
+                             }
+@@ -1260,6 +1286,32 @@ namespace osu.GameModes.Play.Rulesets.Osu
+                                     break;
+                                 }
+ 
++                                if (canClick)
++                                {
++                                    // HitTest
++                                    foreach (HitObject t in hom)
++                                    {
++                                        if (t == h)
++                                            break;
++
++                                        var isHit = (t.IsType(HitObjectType.Slider) && t.HittableEndTime <= time)
++                                            || (t.IsType(HitObjectType.Spinner) && t.HittableEndTime <= time - 1)
++                                            || (!t.IsType(HitObjectType.Slider) && !t.IsType(HitObjectType.Spinner) && t.StartTime <= time);
++
++                                        // Note the '<' instead of '<=' here.
++                                        if (t.StartTime + hitObjectManager.HitWindow50 < time || isHit)
++                                            continue;
++
++                                        if (Vector2.DistanceSquared(h.Position, t.Position) <= hitObjectManager.HitObjectRadius * hitObjectManager.HitObjectRadius)
++                                        {
++                                            // TODO: if there's no point in time where we can click this object due to this check,
++                                            // we could try finding another click spot that's not the object's center.
++                                            canClick = false;
++                                            break;
++                                        }
++                                    }
++                                }
++
+                                 if (canClick)
+                                     break;
+                             }
+-- 
+2.19.1
+

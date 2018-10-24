@@ -1,0 +1,59 @@
+From fdd38367016979b1f51c7ab5911e16cffe460340 Mon Sep 17 00:00:00 2001
+From: Ivan Molodetskikh <yalterz@gmail.com>
+Date: Wed, 7 Dec 2016 17:59:09 +0300
+Subject: [PATCH 08/28] Added an option to hide the replay overlay.
+
+---
+ osu!/Configuration/ConfigManager.cs             | 2 ++
+ osu!/GameModes/Options/Options.cs               | 1 +
+ osu!/GameModes/Play/Components/ReplayOverlay.cs | 2 +-
+ 3 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/osu!/Configuration/ConfigManager.cs b/osu!/Configuration/ConfigManager.cs
+index cb54da1..3f92ca2 100644
+--- a/osu!/Configuration/ConfigManager.cs
++++ b/osu!/Configuration/ConfigManager.cs
+@@ -198,6 +198,7 @@ namespace osu.Configuration
+         internal static BindableDouble sAutoPlusSliderSpeedFactor;
+         internal static BindableDouble sAutoPlusStreamSpeedFactor;
+         internal static BindableBool sAutoPlusSaveReplayBeforePlaying;
++        internal static BindableBool sHideReplayInterface;
+         internal static BindableBool sForceFramerate;
+         internal static BindableBool sSynchronousLog;
+         internal static BindableBool sTrailNoFrameSkip;
+@@ -785,6 +786,7 @@ namespace osu.Configuration
+             sAutoPlusSaveReplayBeforePlaying = ReadBool(@"Auto+SaveReplayBeforePlaying", false);
+             sAutoPlusSliderSpeedFactor = ReadDouble(@"Auto+SliderSpeedFactor", 4.0);
+             sAutoPlusStreamSpeedFactor = ReadDouble(@"Auto+StreamSpeedFactor", 4.0);
++            sHideReplayInterface = ReadBool(@"HideReplayInterface", false);
+             sForceFramerate = new BindableBool();
+             sSynchronousLog = ReadBool(@"SynchronousLog", false);
+             sTrailNoFrameSkip = ReadBool(@"TrailNoFrameSkip", true);
+diff --git a/osu!/GameModes/Options/Options.cs b/osu!/GameModes/Options/Options.cs
+index d82034f..c1d1fd3 100644
+--- a/osu!/GameModes/Options/Options.cs
++++ b/osu!/GameModes/Options/Options.cs
+@@ -891,6 +891,7 @@ namespace osu.GameModes.Options
+                     {
+                         Children = new OptionElement[]
+                         {
++                            new OptionCheckbox(@"Hide replay interface", @"If enabled, hides the replay UI.", ConfigManager.sHideReplayInterface),
+                             new OptionCheckbox(@"Force 1000 FPS", @"If enabled, makes osu! run at constant 1000 FPS.", ConfigManager.sForceFramerate),
+                             new OptionCheckbox(@"Write to log synchronously", @"If enabled, makes osu! write into the log synchronously. This results in a proper line order in the logs, but also in severe frame drops.", ConfigManager.sSynchronousLog, delegate {
+                                 Logger.SynchronousLog = ConfigManager.sSynchronousLog;
+diff --git a/osu!/GameModes/Play/Components/ReplayOverlay.cs b/osu!/GameModes/Play/Components/ReplayOverlay.cs
+index 583ab37..dfb894d 100644
+--- a/osu!/GameModes/Play/Components/ReplayOverlay.cs
++++ b/osu!/GameModes/Play/Components/ReplayOverlay.cs
+@@ -658,7 +658,7 @@ namespace osu.GameModes.Play.Components
+ 
+         public override void Draw()
+         {
+-            if (GameBase.Tournament) return;
++            if (GameBase.Tournament || ConfigManager.sHideReplayInterface) return;
+ 
+             spriteManager.Draw();
+             base.Draw();
+-- 
+2.19.1
+

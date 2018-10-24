@@ -1,0 +1,276 @@
+From 56896eab4160745c1bd76298803a19fd8f6fc0a4 Mon Sep 17 00:00:00 2001
+From: Ivan Molodetskikh <yalterz@gmail.com>
+Date: Wed, 7 Dec 2016 17:05:27 +0300
+Subject: [PATCH 06/28] Stream interpolator!
+
+---
+ osu!/Configuration/ConfigManager.cs           |  2 +
+ osu!/GameModes/Options/Options.cs             |  5 +
+ .../Play/Rulesets/Osu/RulesetOsu_Autoplay.cs  | 58 ++++++++++--
+ .../Interpolators/StreamInterpolator.cs       | 92 +++++++++++++++++++
+ osu!/osu!shared.projitems                     |  1 +
+ 5 files changed, 151 insertions(+), 7 deletions(-)
+ create mode 100644 osu!/Helpers/Interpolators/StreamInterpolator.cs
+
+diff --git a/osu!/Configuration/ConfigManager.cs b/osu!/Configuration/ConfigManager.cs
+index a6fa2dd..0c78af5 100644
+--- a/osu!/Configuration/ConfigManager.cs
++++ b/osu!/Configuration/ConfigManager.cs
+@@ -196,6 +196,7 @@ namespace osu.Configuration
+         internal static Bindable<AutoPlusType> sAutoPlusType;
+         internal static Bindable<AutoPlusVersion> sAutoPlusVersion;
+         internal static BindableDouble sAutoPlusSliderSpeedFactor;
++        internal static BindableDouble sAutoPlusStreamSpeedFactor;
+         internal static BindableBool sAutoPlusSaveReplayBeforePlaying;
+         internal static BindableBool sForceFramerate;
+         internal static BindableBool sSynchronousLog;
+@@ -783,6 +784,7 @@ namespace osu.Configuration
+             sAutoPlusVersion = ReadValue<AutoPlusVersion>(@"Auto+Version", AutoPlusVersion.v06);
+             sAutoPlusSaveReplayBeforePlaying = ReadBool(@"Auto+SaveReplayBeforePlaying", false);
+             sAutoPlusSliderSpeedFactor = ReadDouble(@"Auto+SliderSpeedFactor", 4.0);
++            sAutoPlusStreamSpeedFactor = ReadDouble(@"Auto+StreamSpeedFactor", 1.0);
+             sForceFramerate = new BindableBool();
+             sSynchronousLog = ReadBool(@"SynchronousLog", false);
+             sTrailNoFrameSkip = ReadBool(@"TrailNoFrameSkip", true);
+diff --git a/osu!/GameModes/Options/Options.cs b/osu!/GameModes/Options/Options.cs
+index 23b97e8..cd98fd0 100644
+--- a/osu!/GameModes/Options/Options.cs
++++ b/osu!/GameModes/Options/Options.cs
+@@ -901,6 +901,11 @@ namespace osu.GameModes.Options
+                                 if (double.TryParse(((OptionTextbox)sender).Textbox.Text, out val))
+                                     ConfigManager.sAutoPlusSliderSpeedFactor.Value = val;
+                             }),
++                            new OptionTextbox(@"Stream speed factor (1)", ConfigManager.sAutoPlusStreamSpeedFactor.ToString(), false, delegate(object sender, EventArgs e) {
++                                double val;
++                                if (double.TryParse(((OptionTextbox)sender).Textbox.Text, out val))
++                                    ConfigManager.sAutoPlusStreamSpeedFactor.Value = val;
++                            }),
+                         }
+                     },
+ #if DEBUG || Release
+diff --git a/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs b/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
+index 2349dd1..e1a2b76 100644
+--- a/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
++++ b/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
+@@ -1096,6 +1096,8 @@ namespace osu.GameModes.Play.Rulesets.Osu
+ 
+                 const double STEP = 1000 / 144.0;
+                 const int TIME_TOO_CLOSE = 10;
++                double STREAM_MIN_DISTANCE_SQ = 25; // TODO: tune.
++                double STREAM_MAX_DISTANCE_SQ = 8490; // TODO: tune.
+                 double SLIDER_DERIVATIVE_FACTOR = ConfigManager.sAutoPlusSliderSpeedFactor;
+ 
+                 bool FOLLOW_SLIDERS = (ConfigManager.sAutoPlusType != AutoPlusType.Normal);
+@@ -1105,15 +1107,15 @@ namespace osu.GameModes.Play.Rulesets.Osu
+ 
+                 if (FOLLOW_SLIDERS || INTERPOLATE)
+                 {
+-                    for (int i = 0; i < frames.Count; ++i)
++                    for (int i = 0; i < frames.Count - 1; ++i)
+                     {
+                         // Slider following.
+                         if (FOLLOW_SLIDERS)
+                         {
+-                            if (i != frames.Count - 1 && frames[i].slider != null && frames[i + 1].slider == frames[i].slider)
++                            if (frames[i].slider != null && frames[i + 1].slider == frames[i].slider)
+                             {
+                                 int j = i + 1;
+-                                while (j != frames.Count - 1 && frames[j + 1].slider == frames[j].slider)
++                                while (j < frames.Count - 1 && frames[j + 1].slider == frames[j].slider)
+                                     ++j;
+ 
+                                 interpolators.Add(new SliderFollowInterpolator(frames[i].frame.time, frames[j].frame.time, frames[i].slider));
+@@ -1123,13 +1125,13 @@ namespace osu.GameModes.Play.Rulesets.Osu
+                         }
+ 
+                         // Spinners.
+-                        if (frames[i].type == ObjectType.SPIN)
++                        if (frames[i].type == ObjectType.SPIN && frames[i + 1].type == ObjectType.SPIN)
+                         {
+                             var points = new List<PointWithTime>();
+                             points.Add(new PointWithTime(frames[i].frame));
+ 
+                             int j = i + 1;
+-                            while (j != frames.Count - 1 && frames[j + 1].type == ObjectType.SPIN)
++                            while (j < frames.Count - 1 && frames[j + 1].type == ObjectType.SPIN)
+                             {
+                                 points.Add(new PointWithTime(frames[j].frame));
+                                 ++j;
+@@ -1142,13 +1144,16 @@ namespace osu.GameModes.Play.Rulesets.Osu
+                         }
+ 
+                         // Frames that are too close in time to each other.
+-                        if (i != frames.Count - 1 && (frames[i + 1].frame.time - frames[i].frame.time) < TIME_TOO_CLOSE)
++                        if ((frames[i + 1].frame.time - frames[i].frame.time) < TIME_TOO_CLOSE)
+                         {
+                             var points = new List<PointWithTime>();
+                             points.Add(new PointWithTime(frames[i].frame));
+ 
+                             int j = i + 1;
+-                            while (j != frames.Count - 1 && (frames[j + 1].frame.time - frames[j].frame.time) < TIME_TOO_CLOSE)
++                            while (j < frames.Count - 1
++                                && frames[j + 1].slider == null
++                                && frames[j + 1].type != ObjectType.SPIN
++                                && (frames[j + 1].frame.time - frames[j].frame.time) < TIME_TOO_CLOSE)
+                             {
+                                 points.Add(new PointWithTime(frames[j].frame));
+                                 ++j;
+@@ -1159,6 +1164,45 @@ namespace osu.GameModes.Play.Rulesets.Osu
+                             i = j - 1;
+                             continue;
+                         }
++
++                        // Streams.
++                        Func<FrameWithType, FrameWithType, double> distanceSq = (x, y) =>
++                        {
++                            return Math.Pow((y.frame.mouseX - x.frame.mouseX), 2) + Math.Pow((y.frame.mouseY - x.frame.mouseY), 2);
++                        };
++
++                        if (i < frames.Count - 2
++                            && (frames[i + 1].slider == null || frames[i + 2].slider != frames[i + 1].slider)
++                            && frames[i + 2].type != ObjectType.SPIN
++                            && Math.Abs((frames[i + 2].frame.time - frames[i + 1].frame.time) - (frames[i + 1].frame.time - frames[i].frame.time)) < 2
++                            && distanceSq(frames[i + 2], frames[i + 1]) >= STREAM_MIN_DISTANCE_SQ
++                            && distanceSq(frames[i + 2], frames[i + 1]) <= STREAM_MAX_DISTANCE_SQ
++                            && distanceSq(frames[i + 1], frames[i]) >= STREAM_MIN_DISTANCE_SQ
++                            && distanceSq(frames[i + 1], frames[i]) <= STREAM_MAX_DISTANCE_SQ)
++                        {
++                            var timeBetweenObjects = frames[i + 1].frame.time - frames[i].frame.time;
++
++                            var points = new List<PointWithTime>();
++                            points.Add(new PointWithTime(frames[i].frame));
++                            points.Add(new PointWithTime(frames[i + 1].frame));
++
++                            int j = i + 2;
++                            while (j < frames.Count - 1
++                                && (frames[j].slider == null || frames[j + 1].slider != frames[j].slider)
++                                && frames[j + 1].type != ObjectType.SPIN
++                                && Math.Abs((frames[j + 1].frame.time - frames[j].frame.time) - timeBetweenObjects) < 2
++                                && distanceSq(frames[j + 1], frames[j]) >= STREAM_MIN_DISTANCE_SQ
++                                && distanceSq(frames[j + 1], frames[j]) <= STREAM_MAX_DISTANCE_SQ)
++                            {
++                                points.Add(new PointWithTime(frames[j].frame));
++                                ++j;
++                            }
++                            points.Add(new PointWithTime(frames[j].frame));
++
++                            interpolators.Add(new StreamInterpolator(points));
++                            i = j - 1;
++                            continue;
++                        }
+                     }
+ 
+                     interpolators.Sort(new InterpolatorComparer());
+diff --git a/osu!/Helpers/Interpolators/StreamInterpolator.cs b/osu!/Helpers/Interpolators/StreamInterpolator.cs
+new file mode 100644
+index 0000000..3afa315
+--- /dev/null
++++ b/osu!/Helpers/Interpolators/StreamInterpolator.cs
+@@ -0,0 +1,92 @@
++﻿using System;
++using System.Collections.Generic;
++using System.Text;
++using Microsoft.Xna.Framework;
++using osu.Configuration;
++
++namespace osu.Helpers.Interpolators
++{
++    class StreamInterpolator : IInterpolator
++    {
++        public int StartTime { get; }
++        public int EndTime { get; }
++        protected List<PointWithTime> Points;
++        protected int CurrentPointIndex;
++
++        public StreamInterpolator(List<PointWithTime> points)
++        {
++            if (points.Count < 2)
++                throw new ArgumentException("Cannot interpolate with less than 2 points.", "points");
++
++            Points = new List<PointWithTime>(points);
++            Points.Sort();
++
++            StartTime = Points[0].time;
++            EndTime = Points[Points.Count - 1].time;
++            CurrentPointIndex = 0;
++        }
++
++        public bool Ignored()
++        {
++            return false;
++        }
++
++        public Vector2 PositionAtTime(int time)
++        {
++            if (time < StartTime || time > EndTime)
++                throw new ArgumentOutOfRangeException("time", time, "Time has to be between StartTime and EndTime.");
++
++            while (CurrentPointIndex != Points.Count && Points[CurrentPointIndex + 1].time <= time)
++                ++CurrentPointIndex;
++
++            while (Points[CurrentPointIndex].time > time)
++                --CurrentPointIndex;
++
++            if (Points[CurrentPointIndex].time == time)
++                return Points[CurrentPointIndex].pos;
++
++            var progress = ((float)(time - Points[CurrentPointIndex].time)) / (Points[CurrentPointIndex + 1].time - Points[CurrentPointIndex].time);
++            bool facing = (CurrentPointIndex % 2) == 0;
++            var angle = progress * Math.PI;
++            var posDifference = Points[CurrentPointIndex + 1].pos - Points[CurrentPointIndex].pos;
++
++            Vector2 posDifferenceRotated = new Vector2(-posDifference.Y, posDifference.X);
++            posDifferenceRotated.Normalize();
++
++            var radius = posDifference.Length() / 2;
++            var x = Math.Cos(angle) * -0.5 + 0.5;
++            var y = Math.Sin(angle) * (facing ? 1 : -1) * radius;
++
++            return Points[CurrentPointIndex].pos + (posDifference * (float)x) + (posDifferenceRotated * (float)y);
++        }
++
++        public Vector2 DerivativeAtStartTime()
++        {
++            bool facing = (0 % 2) == 0;
++            var posDifference = Points[1].pos - Points[0].pos;
++
++            Vector2 posDifferenceRotated = new Vector2(-posDifference.Y, posDifference.X);
++            posDifferenceRotated.Normalize();
++
++            var radius = posDifference.Length() / 2;
++            var yDerivative = (facing ? 1 : -1) * radius;
++
++            return (posDifferenceRotated * (float)yDerivative * (float)ConfigManager.sAutoPlusStreamSpeedFactor.Value) / (Points[1].time - Points[0].time);
++        }
++
++        public Vector2 DerivativeAtEndTime()
++        {
++            var index = Points.Count - 2;
++            bool facing = (index % 2) == 0;
++            var posDifference = Points[index + 1].pos - Points[index].pos;
++
++            Vector2 posDifferenceRotated = new Vector2(-posDifference.Y, posDifference.X);
++            posDifferenceRotated.Normalize();
++
++            var radius = posDifference.Length() / 2;
++            var yDerivative = -1 * (facing ? 1 : -1) * radius;
++
++            return (posDifferenceRotated * (float)yDerivative * (float)ConfigManager.sAutoPlusStreamSpeedFactor.Value) / (Points[index + 1].time - Points[index].time);
++        }
++    }
++}
+diff --git a/osu!/osu!shared.projitems b/osu!/osu!shared.projitems
+index a178acd..ecaee5f 100644
+--- a/osu!/osu!shared.projitems
++++ b/osu!/osu!shared.projitems
+@@ -659,6 +659,7 @@
+     <Compile Include="$(MSBuildThisFileDirectory)Helpers\Interpolators\FixedPositionInterpolator.cs" />
+     <Compile Include="$(MSBuildThisFileDirectory)Helpers\Interpolators\LinearInterpolator.cs" />
+     <Compile Include="$(MSBuildThisFileDirectory)Helpers\Interpolators\SliderFollowInterpolator.cs" />
++    <Compile Include="$(MSBuildThisFileDirectory)Helpers\Interpolators\StreamInterpolator.cs" />
+     <Compile Include="$(MSBuildThisFileDirectory)Helpers\IPC.cs" />
+     <Compile Include="$(MSBuildThisFileDirectory)Helpers\ListHelper.cs" />
+     <Compile Include="$(MSBuildThisFileDirectory)Helpers\Native.cs" />
+-- 
+2.19.1
+

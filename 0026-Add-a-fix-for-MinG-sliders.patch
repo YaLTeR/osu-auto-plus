@@ -1,0 +1,267 @@
+From 6a7c1419d50742237f062b6a143f2918930bc59f Mon Sep 17 00:00:00 2001
+From: Ivan Molodetskikh <yalterz@gmail.com>
+Date: Sat, 31 Dec 2016 19:15:15 +0300
+Subject: [PATCH 26/28] Add a fix for MinG sliders
+
+---
+ .../Play/Rulesets/Osu/RulesetOsu_Autoplay.cs  | 205 +++++++++---------
+ 1 file changed, 104 insertions(+), 101 deletions(-)
+
+diff --git a/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs b/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
+index a2f9863..d7af9cb 100644
+--- a/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
++++ b/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
+@@ -984,146 +984,149 @@ namespace osu.GameModes.Play.Rulesets.Osu
+ 
+                         if (ConfigManager.sAutoPlusVersion == AutoPlusVersion.v06)
+                         {
+-                            // Last time when this slider was active.
+-                            int? lastActiveTime = null;
++                            if (s.sliderScoreTimingPoints.Count != 0)
++                            {
++                                // Last time when this slider was active.
++                                int? lastActiveTime = null;
+ 
+-                            // Whether we activated the slider on the last active time.
+-                            bool activatedOnLastActiveTime = false;
++                                // Whether we activated the slider on the last active time.
++                                bool activatedOnLastActiveTime = false;
+ 
+-                            // How many slider ticks happened during the time when this slider wasn't active.
+-                            int sliderTicksCounter = 0;
++                                // How many slider ticks happened during the time when this slider wasn't active.
++                                int sliderTicksCounter = 0;
+ 
+-                            //// If the slider was active when we clicked its starting circle, set the variables accordingly.
+-                            //if (clickedStartCircle && ActiveHitObjectAtTime(time) == h)
+-                            //{
+-                            //    lastActiveTime = time;
+-                            //    activatedOnLastActiveTime = true;
++                                //// If the slider was active when we clicked its starting circle, set the variables accordingly.
++                                //if (clickedStartCircle && ActiveHitObjectAtTime(time) == h)
++                                //{
++                                //    lastActiveTime = time;
++                                //    activatedOnLastActiveTime = true;
+ 
+-                            //    // TODO: is this correct?
+-                            //    sliderTicksCounter = s.sliderScoreTimingPoints.FindAll(x => x <= time).Count;
+-                            //}
++                                //    // TODO: is this correct?
++                                //    sliderTicksCounter = s.sliderScoreTimingPoints.FindAll(x => x <= time).Count;
++                                //}
+ 
+-                            // If the last slider tick is before some other slider ticks, it needs special handling.
+-                            int ticksAfterLastStart = s.sliderScoreTimingPoints.FindIndex(x => x >= s.sliderScoreTimingPoints[s.sliderScoreTimingPoints.Count - 1]);
+-                            bool specialHandling = (ticksAfterLastStart != s.sliderScoreTimingPoints.Count - 1);
+-                            int specialHandlingStartsFrom = s.sliderScoreTimingPoints[s.sliderScoreTimingPoints.Count - 1];
+-                            int specialHandlingEndsAt = specialHandling ? s.sliderScoreTimingPoints[s.sliderScoreTimingPoints.Count - 2] : 0;
++                                // If the last slider tick is before some other slider ticks, it needs special handling.
++                                int ticksAfterLastStart = s.sliderScoreTimingPoints.FindIndex(x => x >= s.sliderScoreTimingPoints[s.sliderScoreTimingPoints.Count - 1]);
++                                bool specialHandling = (ticksAfterLastStart != s.sliderScoreTimingPoints.Count - 1);
++                                int specialHandlingStartsFrom = s.sliderScoreTimingPoints[s.sliderScoreTimingPoints.Count - 1];
++                                int specialHandlingEndsAt = specialHandling ? s.sliderScoreTimingPoints[s.sliderScoreTimingPoints.Count - 2] : 0;
+ 
+-                            for (int t = h.StartTime; t <= h.EndTime; ++t)
+-                            {
+-                                var hom = HitObjectsMinimalAtTime(t);
+-
+-                                if (!hom.Contains(h))
++                                for (int t = h.StartTime; t <= h.EndTime; ++t)
+                                 {
+-                                    // At this point osu! forgot about this slider for the rest of the map.
+-                                    break;
+-                                }
++                                    var hom = HitObjectsMinimalAtTime(t);
+ 
+-                                var active = (ActiveHitObjectAtTime(t, hom) == h);
++                                    if (!hom.Contains(h))
++                                    {
++                                        // At this point osu! forgot about this slider for the rest of the map.
++                                        break;
++                                    }
+ 
+-                                var pos = SliderPositionAtTime(s, t);
++                                    var active = (ActiveHitObjectAtTime(t, hom) == h);
+ 
+-                                if (active)
+-                                {
+-                                    bool activatedNow = false;
++                                    var pos = SliderPositionAtTime(s, t);
+ 
+-                                    if (sliderTicksCounter > 0 && lastActiveTime == null)
++                                    if (active)
+                                     {
+-                                        Debug.Print("Slider {0}-{1}: skipped {2} ticks because it wasn't active.", h.StartTime, h.EndTime, sliderTicksCounter);
++                                        bool activatedNow = false;
+ 
+-                                        if (s.sliderScoreTimingPoints.FindAll(x => x >= t).Count > 0)
++                                        if (sliderTicksCounter > 0 && lastActiveTime == null)
+                                         {
+-                                            // Add frames here anyway to make sure those ticks get processed and don't interfere with later ticks.
+-                                            for (int j = 0; j < sliderTicksCounter; ++j)
+-                                                AddFrameWithTypeToReplay(frames, new FrameWithType(new bReplayFrame(t, pos.X, pos.Y, pButtonState.Left1), ObjectType.DRAG, s));
++                                            Debug.Print("Slider {0}-{1}: skipped {2} ticks because it wasn't active.", h.StartTime, h.EndTime, sliderTicksCounter);
++
++                                            if (s.sliderScoreTimingPoints.FindAll(x => x >= t).Count > 0)
++                                            {
++                                                // Add frames here anyway to make sure those ticks get processed and don't interfere with later ticks.
++                                                for (int j = 0; j < sliderTicksCounter; ++j)
++                                                    AddFrameWithTypeToReplay(frames, new FrameWithType(new bReplayFrame(t, pos.X, pos.Y, pButtonState.Left1), ObjectType.DRAG, s));
++                                            }
+                                         }
+-                                    }
+-
+-                                    // If the slider wasn't active and became active now, get the skipped slider ticks.
+-                                    if (lastActiveTime != null && lastActiveTime.Value != t - 1 && sliderTicksCounter > 0)
+-                                    {
+-                                        var lastActivePos = SliderPositionAtTime(s, lastActiveTime.Value);
+ 
+-                                        // Make sure we activated the slider.
+-                                        if (!activatedOnLastActiveTime)
++                                        // If the slider wasn't active and became active now, get the skipped slider ticks.
++                                        if (lastActiveTime != null && lastActiveTime.Value != t - 1 && sliderTicksCounter > 0)
+                                         {
+-                                            AddFrameWithTypeToReplay(frames, new FrameWithType(new bReplayFrame(lastActiveTime.Value, lastActivePos.X, lastActivePos.Y, pButtonState.Left1), ObjectType.DRAG, s));
+-                                            dontSpinHere.Add(lastActiveTime.Value);
++                                            var lastActivePos = SliderPositionAtTime(s, lastActiveTime.Value);
+ 
+-                                            activatedOnLastActiveTime = true;
+-                                        }
++                                            // Make sure we activated the slider.
++                                            if (!activatedOnLastActiveTime)
++                                            {
++                                                AddFrameWithTypeToReplay(frames, new FrameWithType(new bReplayFrame(lastActiveTime.Value, lastActivePos.X, lastActivePos.Y, pButtonState.Left1), ObjectType.DRAG, s));
++                                                dontSpinHere.Add(lastActiveTime.Value);
+ 
+-                                        // On the end of special handling, click one more time for the last slider tick.
+-                                        if (specialHandling && t >= specialHandlingEndsAt)
+-                                            ++sliderTicksCounter;
++                                                activatedOnLastActiveTime = true;
++                                            }
+ 
+-                                        // We need to have as many frames here as there were slider ticks.
+-                                        for (int j = 0; j < sliderTicksCounter; ++j)
+-                                            AddFrameWithTypeToReplay(frames, new FrameWithType(new bReplayFrame(t, pos.X, pos.Y, pButtonState.Left1), ObjectType.DRAG, s));
++                                            // On the end of special handling, click one more time for the last slider tick.
++                                            if (specialHandling && t >= specialHandlingEndsAt)
++                                                ++sliderTicksCounter;
+ 
+-                                        dontSpinHere.Add(t);
++                                            // We need to have as many frames here as there were slider ticks.
++                                            for (int j = 0; j < sliderTicksCounter; ++j)
++                                                AddFrameWithTypeToReplay(frames, new FrameWithType(new bReplayFrame(t, pos.X, pos.Y, pButtonState.Left1), ObjectType.DRAG, s));
+ 
+-                                        activatedNow = true;
++                                            dontSpinHere.Add(t);
+ 
+-                                        sliderTicksCounter = 0;
+-                                    }
++                                            activatedNow = true;
+ 
+-                                    if (specialHandling && t > specialHandlingStartsFrom && t <= specialHandlingEndsAt)
+-                                    {
+-                                        // lastActiveTime is not null here.
+-                                        var lastActivePos = SliderPositionAtTime(s, lastActiveTime.Value);
++                                            sliderTicksCounter = 0;
++                                        }
+ 
+-                                        // Make sure the slider stays active.
+-                                        if (!activatedOnLastActiveTime)
++                                        if (specialHandling && t > specialHandlingStartsFrom && t <= specialHandlingEndsAt)
+                                         {
+-                                            AddFrameWithTypeToReplay(frames, new FrameWithType(new bReplayFrame(lastActiveTime.Value, lastActivePos.X, lastActivePos.Y, pButtonState.Left1), ObjectType.DRAG, s));
+-                                            dontSpinHere.Add(lastActiveTime.Value);
++                                            // lastActiveTime is not null here.
++                                            var lastActivePos = SliderPositionAtTime(s, lastActiveTime.Value);
++
++                                            // Make sure the slider stays active.
++                                            if (!activatedOnLastActiveTime)
++                                            {
++                                                AddFrameWithTypeToReplay(frames, new FrameWithType(new bReplayFrame(lastActiveTime.Value, lastActivePos.X, lastActivePos.Y, pButtonState.Left1), ObjectType.DRAG, s));
++                                                dontSpinHere.Add(lastActiveTime.Value);
++                                            }
+                                         }
+-                                    }
+ 
+-                                    lastActiveTime = t;
++                                        lastActiveTime = t;
+ 
+-                                    activatedOnLastActiveTime = activatedNow;
+-                                }
++                                        activatedOnLastActiveTime = activatedNow;
++                                    }
+ 
+-                                if (s.sliderScoreTimingPoints.Contains(t) && (!specialHandling || t != specialHandlingStartsFrom || s.sliderScoreTimingPoints[ticksAfterLastStart] == t))
+-                                {
+-                                    if (active)
++                                    if (s.sliderScoreTimingPoints.Contains(t) && (!specialHandling || t != specialHandlingStartsFrom || s.sliderScoreTimingPoints[ticksAfterLastStart] == t))
+                                     {
+-                                        // If the slider is active, get the tick right away.
+-                                        AddFrameWithTypeToReplay(frames, new FrameWithType(new bReplayFrame(t, pos.X, pos.Y, pButtonState.Left1), ObjectType.DRAG, s));
+-
+-                                        // If this is the end of slider special handling, add one more frame to get the last tick.
+-                                        if (t == specialHandlingEndsAt)
++                                        if (active)
++                                        {
++                                            // If the slider is active, get the tick right away.
+                                             AddFrameWithTypeToReplay(frames, new FrameWithType(new bReplayFrame(t, pos.X, pos.Y, pButtonState.Left1), ObjectType.DRAG, s));
+ 
+-                                        dontSpinHere.Add(t);
++                                            // If this is the end of slider special handling, add one more frame to get the last tick.
++                                            if (t == specialHandlingEndsAt)
++                                                AddFrameWithTypeToReplay(frames, new FrameWithType(new bReplayFrame(t, pos.X, pos.Y, pButtonState.Left1), ObjectType.DRAG, s));
+ 
+-                                        activatedOnLastActiveTime = true;
++                                            dontSpinHere.Add(t);
++
++                                            activatedOnLastActiveTime = true;
++                                        }
++                                        else
++                                        {
++                                            // Otherwise, increase the counter.
++                                            ++sliderTicksCounter;
++                                        }
+                                     }
+-                                    else
++
++                                    // This check should be after the previous if so that the code that adds frames when the ticks were skipped wouldn't add one extra frame.
++                                    if (specialHandling && t == specialHandlingStartsFrom && lastActiveTime == null && !active)
+                                     {
+-                                        // Otherwise, increase the counter.
+-                                        ++sliderTicksCounter;
++                                        // No need for special handling in this case as we can't get the last tick anyway.
++                                        specialHandling = false;
+                                     }
+-                                }
+ 
+-                                // This check should be after the previous if so that the code that adds frames when the ticks were skipped wouldn't add one extra frame.
+-                                if (specialHandling && t == specialHandlingStartsFrom && lastActiveTime == null && !active)
+-                                {
+-                                    // No need for special handling in this case as we can't get the last tick anyway.
+-                                    specialHandling = false;
+-                                }
+-
+-                                // If the slider is in hitObjectsMinimal at its end time, click on its end.
+-                                // TODO: if there's some other object here that we click on we don't need to click on the slider end separately.
+-                                if (t == h.EndTime)
+-                                {
+-                                    AddFrameWithTypeToReplay(frames, new FrameWithType(new bReplayFrame(t, pos.X, pos.Y, pButtonState.Left1), ObjectType.DRAG, s));
+-                                    dontSpinHere.Add(t);
++                                    // If the slider is in hitObjectsMinimal at its end time, click on its end.
++                                    // TODO: if there's some other object here that we click on we don't need to click on the slider end separately.
++                                    if (t == h.EndTime)
++                                    {
++                                        AddFrameWithTypeToReplay(frames, new FrameWithType(new bReplayFrame(t, pos.X, pos.Y, pButtonState.Left1), ObjectType.DRAG, s));
++                                        dontSpinHere.Add(t);
+ 
+-                                    if (sliderTicksCounter > 0)
+-                                        Debug.Print("Slider {0}-{1}: skipped {2} ticks because it wasn't active.", h.StartTime, h.EndTime, sliderTicksCounter);
++                                        if (sliderTicksCounter > 0)
++                                            Debug.Print("Slider {0}-{1}: skipped {2} ticks because it wasn't active.", h.StartTime, h.EndTime, sliderTicksCounter);
++                                    }
+                                 }
+                             }
+                         }
+-- 
+2.19.1
+

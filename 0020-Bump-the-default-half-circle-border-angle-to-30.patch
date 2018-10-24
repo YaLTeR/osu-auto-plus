@@ -1,0 +1,39 @@
+From 3d304a33c1ddfe060db8339fb7c8efabd2574bd6 Mon Sep 17 00:00:00 2001
+From: Ivan Molodetskikh <yalterz@gmail.com>
+Date: Mon, 26 Dec 2016 23:02:06 +0300
+Subject: [PATCH 20/28] Bump the default half-circle border angle to 30
+
+---
+ osu!/Configuration/ConfigManager.cs | 2 +-
+ osu!/GameModes/Options/Options.cs   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/osu!/Configuration/ConfigManager.cs b/osu!/Configuration/ConfigManager.cs
+index bd2ad9e..4b00d95 100644
+--- a/osu!/Configuration/ConfigManager.cs
++++ b/osu!/Configuration/ConfigManager.cs
+@@ -797,7 +797,7 @@ namespace osu.Configuration
+             sAutoPlusInterpFrequency = ReadDouble(@"Auto+InterpFrequency", 144.0);
+             sAutoPlusSliderSpeedFactor = ReadDouble(@"Auto+SliderSpeedFactor", 4.0);
+             sAutoPlusStreamSpeedFactor = ReadDouble(@"Auto+StreamSpeedFactor", 4.0);
+-            sAutoPlusStreamHalfCircleBorderAngle = ReadDouble(@"Auto+StreamHalfCircleBorderAngle", 15.0);
++            sAutoPlusStreamHalfCircleBorderAngle = ReadDouble(@"Auto+StreamHalfCircleBorderAngle", 30.0);
+             sHideReplayInterface = ReadBool(@"HideReplayInterface", false);
+             sForceFramerate = new BindableBool();
+             sSynchronousLog = ReadBool(@"SynchronousLog", false);
+diff --git a/osu!/GameModes/Options/Options.cs b/osu!/GameModes/Options/Options.cs
+index c8dbbdc..0b76d85 100644
+--- a/osu!/GameModes/Options/Options.cs
++++ b/osu!/GameModes/Options/Options.cs
+@@ -906,7 +906,7 @@ namespace osu.GameModes.Options
+                                 if (double.TryParse(((OptionTextbox)sender).Textbox.Text, out val))
+                                     ConfigManager.sAutoPlusStreamSpeedFactor.Value = val;
+                             }),
+-                            new OptionTextbox(@"Stream half-circle border angle (15) [0..80]", ConfigManager.sAutoPlusStreamHalfCircleBorderAngle.ToString(), false, delegate(object sender, EventArgs e) {
++                            new OptionTextbox(@"Stream half-circle border angle (30) [0..80]", ConfigManager.sAutoPlusStreamHalfCircleBorderAngle.ToString(), false, delegate(object sender, EventArgs e) {
+                                 double val;
+                                 if (double.TryParse(((OptionTextbox)sender).Textbox.Text, out val))
+                                     ConfigManager.sAutoPlusStreamHalfCircleBorderAngle.Value = val;
+-- 
+2.19.1
+

@@ -1,0 +1,32 @@
+From a2458e17ae2264bbba00d2395e41f81bee28eced Mon Sep 17 00:00:00 2001
+From: Ivan Molodetskikh <yalterz@gmail.com>
+Date: Mon, 26 Dec 2016 15:15:28 +0300
+Subject: [PATCH 17/28] Use .Exists() for IsCovered()
+
+Swag.
+---
+ osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)
+
+diff --git a/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs b/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
+index 75257cd..f6bffbd 100644
+--- a/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
++++ b/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
+@@ -248,13 +248,7 @@ namespace osu.GameModes.Play.Rulesets.Osu
+             var a = frames[index_from].frame.time;
+             var b = frames[index_from + 1].frame.time;
+ 
+-            foreach (var interp in interpolators)
+-            {
+-                if (interp.StartTime <= a && interp.EndTime >= b)
+-                    return true;
+-            }
+-
+-            return false;
++            return interpolators.Exists(interp => interp.StartTime <= a && interp.EndTime >= b);
+         }
+ 
+         private void InterpFollowSliders(List<FrameWithType> frames, List<IInterpolator> interpolators)
+-- 
+2.19.1
+

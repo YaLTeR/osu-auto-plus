@@ -1,0 +1,443 @@
+From dd994977929a444178532939112da658b843034e Mon Sep 17 00:00:00 2001
+From: Ivan Molodetskikh <yalterz@gmail.com>
+Date: Mon, 26 Dec 2016 11:45:40 +0300
+Subject: [PATCH 14/28] Make every interp type toggleable.
+
+---
+ osu!/Configuration/ConfigManager.cs           |   8 +-
+ osu!/GameBase.cs                              |   7 -
+ osu!/GameModes/Options/Options.cs             |   9 +-
+ .../Play/Rulesets/Osu/RulesetOsu_Autoplay.cs  | 306 +++++++++---------
+ 4 files changed, 156 insertions(+), 174 deletions(-)
+
+diff --git a/osu!/Configuration/ConfigManager.cs b/osu!/Configuration/ConfigManager.cs
+index 2c0bf0a..267d5a0 100644
+--- a/osu!/Configuration/ConfigManager.cs
++++ b/osu!/Configuration/ConfigManager.cs
+@@ -193,7 +193,9 @@ namespace osu.Configuration
+         internal static BindableBool sCompatibilityContext;
+ 
+         internal static BindableBool sAutoPlus;
+-        internal static Bindable<AutoPlusType> sAutoPlusType;
++        internal static BindableBool sAutoPlusFollowSliders;
++        internal static BindableBool sAutoPlusUseSplineInterp;
++        internal static BindableBool sAutoPlusUseHalfCircleStreamInterp;
+         internal static Bindable<AutoPlusVersion> sAutoPlusVersion;
+         internal static BindableDouble sAutoPlusSliderSpeedFactor;
+         internal static BindableDouble sAutoPlusStreamSpeedFactor;
+@@ -782,7 +784,9 @@ namespace osu.Configuration
+             sCompatibilityContext = ReadBool(@"CompatibilityContext", false);
+ 
+             sAutoPlus = ReadBool(@"Auto+", true);
+-            sAutoPlusType = ReadValue<AutoPlusType>(@"Auto+Type", AutoPlusType.Normal);
++            sAutoPlusFollowSliders = ReadBool(@"Auto+FollowSliders", true);
++            sAutoPlusUseSplineInterp = ReadBool(@"Auto+UseSplineInterp", true);
++            sAutoPlusUseHalfCircleStreamInterp = ReadBool(@"Auto+UseHalfCircleStreamInterp", true);
+             sAutoPlusVersion = ReadValue<AutoPlusVersion>(@"Auto+Version", AutoPlusVersion.v06);
+             sAutoPlusSaveReplayBeforePlaying = ReadBool(@"Auto+SaveReplayBeforePlaying", false);
+             sAutoPlusSliderSpeedFactor = ReadDouble(@"Auto+SliderSpeedFactor", 4.0);
+diff --git a/osu!/GameBase.cs b/osu!/GameBase.cs
+index 03e9387..0dd62cc 100644
+--- a/osu!/GameBase.cs
++++ b/osu!/GameBase.cs
+@@ -3369,13 +3369,6 @@ namespace osu
+         Custom = 5
+     };
+ 
+-    public enum AutoPlusType
+-    {
+-        Normal = 0,
+-        FollowSliders = 1,
+-        Interpolate = 2
+-    };
+-
+     public enum AutoPlusVersion
+     {
+         v05 = 0,
+diff --git a/osu!/GameModes/Options/Options.cs b/osu!/GameModes/Options/Options.cs
+index a8e6697..418ce30 100644
+--- a/osu!/GameModes/Options/Options.cs
++++ b/osu!/GameModes/Options/Options.cs
+@@ -872,12 +872,9 @@ namespace osu.GameModes.Options
+                         Children = new OptionElement[]
+                         {
+                             new OptionCheckbox(@"Enable Auto+", @"Replace standard osu! Auto with Auto+.", ConfigManager.sAutoPlus),
+-                            new OptionDropdown(@"Auto+ type", new pDropdownItem[]
+-                            {
+-                                new pDropdownItem(@"Normal", AutoPlusType.Normal),
+-                                new pDropdownItem(@"Follow sliders", AutoPlusType.FollowSliders),
+-                                new pDropdownItem(@"Interpolate", AutoPlusType.Interpolate)
+-                            }, ConfigManager.sAutoPlusType),
++                            new OptionCheckbox(@"Follow sliders", @"Makes Auto+ follow sliders.", ConfigManager.sAutoPlusFollowSliders),
++                            new OptionCheckbox(@"Use spline interpolation", @"Use spline interpolation for cursor dancing.", ConfigManager.sAutoPlusUseSplineInterp),
++                            new OptionCheckbox(@"Use half-circle stream interpolation", @"Use half-circle stream interpolation.", ConfigManager.sAutoPlusUseHalfCircleStreamInterp),
+                             new OptionDropdown(@"Algorithm version", new pDropdownItem[]
+                             {
+                                 new pDropdownItem(@"v0.5", AutoPlusVersion.v05),
+diff --git a/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs b/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
+index 3b16b05..bc1b469 100644
+--- a/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
++++ b/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
+@@ -1101,197 +1101,192 @@ namespace osu.GameModes.Play.Rulesets.Osu
+                 double STREAM_MAX_COSANGLE = -0.5; // TODO: tune.
+                 double SLIDER_DERIVATIVE_FACTOR = ConfigManager.sAutoPlusSliderSpeedFactor;
+ 
+-                bool FOLLOW_SLIDERS = (ConfigManager.sAutoPlusType != AutoPlusType.Normal);
+-                bool INTERPOLATE = (ConfigManager.sAutoPlusType == AutoPlusType.Interpolate);
+-
+                 List<IInterpolator> interpolators = new List<IInterpolator>();
+ 
+-                if (FOLLOW_SLIDERS || INTERPOLATE)
++                for (int i = 0; i < frames.Count - 1; ++i)
+                 {
+-                    for (int i = 0; i < frames.Count - 1; ++i)
++                    // Slider following.
++                    if (ConfigManager.sAutoPlusFollowSliders)
+                     {
+-                        // Slider following.
+-                        if (FOLLOW_SLIDERS)
++                        if (frames[i].slider != null && frames[i + 1].slider == frames[i].slider)
+                         {
+-                            if (frames[i].slider != null && frames[i + 1].slider == frames[i].slider)
+-                            {
+-                                int j = i + 1;
+-                                while (j < frames.Count - 1 && frames[j + 1].slider == frames[j].slider)
+-                                    ++j;
+-
+-                                interpolators.Add(new SliderFollowInterpolator(frames[i].frame.time, frames[j].frame.time, frames[i].slider));
+-                                i = j - 1;
+-                                continue;
+-                            }
+-                        }
+-
+-                        // Spinners.
+-                        if (frames[i].type == ObjectType.SPIN && frames[i + 1].type == ObjectType.SPIN)
+-                        {
+-                            var points = new List<PointWithTime>();
+-                            points.Add(new PointWithTime(frames[i].frame));
+-
+                             int j = i + 1;
+-                            while (j < frames.Count - 1 && frames[j + 1].type == ObjectType.SPIN)
+-                            {
+-                                points.Add(new PointWithTime(frames[j].frame));
++                            while (j < frames.Count - 1 && frames[j + 1].slider == frames[j].slider)
+                                 ++j;
+-                            }
+-                            points.Add(new PointWithTime(frames[j].frame));
+ 
+-                            interpolators.Add(new LinearInterpolator(points));
++                            interpolators.Add(new SliderFollowInterpolator(frames[i].frame.time, frames[j].frame.time, frames[i].slider));
+                             i = j - 1;
+                             continue;
+                         }
++                    }
+ 
+-                        // Frames that are too close in time to each other.
+-                        Func<FrameWithType, FrameWithType, double> derivative = (x, y) =>
+-                        {
+-                            var t = Math.Max(y.frame.time - x.frame.time, 1);
+-                            var vx = new Vector2(x.frame.mouseX, x.frame.mouseY);
+-                            var vy = new Vector2(y.frame.mouseX, y.frame.mouseY);
+-
+-                            return (vy - vx).Length() / t;
+-                        };
++                    // Spinners.
++                    if (frames[i].type == ObjectType.SPIN && frames[i + 1].type == ObjectType.SPIN)
++                    {
++                        var points = new List<PointWithTime>();
++                        points.Add(new PointWithTime(frames[i].frame));
+ 
+-                        if (frames[i + 1].frame.time == frames[i].frame.time
+-                            || derivative(frames[i], frames[i + 1]) > SPLINE_DERIVATIVE_MAX)
++                        int j = i + 1;
++                        while (j < frames.Count - 1 && frames[j + 1].type == ObjectType.SPIN)
+                         {
+-                            var points = new List<PointWithTime>();
+-                            points.Add(new PointWithTime(frames[i].frame));
+-
+-                            int j = i + 1;
+-                            while (j < frames.Count - 1
+-                                && frames[j + 1].slider == null
+-                                && frames[j + 1].type != ObjectType.SPIN
+-                                && (frames[j + 1].frame.time == frames[j].frame.time
+-                                    || derivative(frames[j], frames[j + 1]) > SPLINE_DERIVATIVE_MAX))
+-                            {
+-                                points.Add(new PointWithTime(frames[j].frame));
+-                                ++j;
+-                            }
+                             points.Add(new PointWithTime(frames[j].frame));
+-
+-                            interpolators.Add(new LinearInterpolator(points));
+-                            i = j - 1;
+-                            continue;
++                            ++j;
+                         }
++                        points.Add(new PointWithTime(frames[j].frame));
+ 
+-                        // Streams.
+-                        Func<FrameWithType, FrameWithType, double> distanceSq = (x, y) =>
+-                        {
+-                            return Math.Pow((y.frame.mouseX - x.frame.mouseX), 2) + Math.Pow((y.frame.mouseY - x.frame.mouseY), 2);
+-                        };
++                        interpolators.Add(new LinearInterpolator(points));
++                        i = j - 1;
++                        continue;
++                    }
+ 
+-                        Func<FrameWithType, FrameWithType, FrameWithType, double> cosBetween = (x, y, z) =>
+-                        {
+-                            var vx = new Vector2(x.frame.mouseX, x.frame.mouseY);
+-                            var vy = new Vector2(y.frame.mouseX, y.frame.mouseY);
+-                            var vz = new Vector2(z.frame.mouseX, z.frame.mouseY);
+-
+-                            var v1 = vx - vy;
+-                            var v2 = vz - vy;
+-                            v1.Normalize();
+-                            v2.Normalize();
+-
+-                            return Vector2.Dot(v1, v2);
+-                        };
+-
+-                        if (i < frames.Count - 2
+-                            && (frames[i + 1].slider == null || frames[i + 2].slider != frames[i + 1].slider)
+-                            && frames[i + 2].type != ObjectType.SPIN
+-                            && Math.Abs((frames[i + 2].frame.time - frames[i + 1].frame.time) - (frames[i + 1].frame.time - frames[i].frame.time)) < 2
+-                            && distanceSq(frames[i + 2], frames[i + 1]) >= STREAM_MIN_DISTANCE_SQ
+-                            && distanceSq(frames[i + 2], frames[i + 1]) <= STREAM_MAX_DISTANCE_SQ
+-                            && distanceSq(frames[i + 1], frames[i]) >= STREAM_MIN_DISTANCE_SQ
+-                            && distanceSq(frames[i + 1], frames[i]) <= STREAM_MAX_DISTANCE_SQ
+-                            && cosBetween(frames[i], frames[i + 1], frames[i + 2]) <= STREAM_MAX_COSANGLE)
++                    // Frames that are too close in time to each other.
++                    Func<FrameWithType, FrameWithType, double> derivative = (x, y) =>
++                    {
++                        var t = Math.Max(y.frame.time - x.frame.time, 1);
++                        var vx = new Vector2(x.frame.mouseX, x.frame.mouseY);
++                        var vy = new Vector2(y.frame.mouseX, y.frame.mouseY);
++
++                        return (vy - vx).Length() / t;
++                    };
++
++                    if (frames[i + 1].frame.time == frames[i].frame.time
++                        || derivative(frames[i], frames[i + 1]) > SPLINE_DERIVATIVE_MAX)
++                    {
++                        var points = new List<PointWithTime>();
++                        points.Add(new PointWithTime(frames[i].frame));
++
++                        int j = i + 1;
++                        while (j < frames.Count - 1
++                            && (!ConfigManager.sAutoPlusFollowSliders || (frames[j].slider == null || frames[j + 1].slider != frames[j].slider))
++                            && frames[j + 1].type != ObjectType.SPIN
++                            && (frames[j + 1].frame.time == frames[j].frame.time
++                                || derivative(frames[j], frames[j + 1]) > SPLINE_DERIVATIVE_MAX))
+                         {
+-                            var timeBetweenObjects = frames[i + 1].frame.time - frames[i].frame.time;
+-
+-                            var points = new List<PointWithTime>();
+-                            points.Add(new PointWithTime(frames[i].frame));
+-                            points.Add(new PointWithTime(frames[i + 1].frame));
+-
+-                            int j = i + 2;
+-                            while (j < frames.Count - 1
+-                                && (frames[j].slider == null || frames[j + 1].slider != frames[j].slider)
+-                                && frames[j + 1].type != ObjectType.SPIN
+-                                && Math.Abs((frames[j + 1].frame.time - frames[j].frame.time) - timeBetweenObjects) < 2
+-                                && distanceSq(frames[j + 1], frames[j]) >= STREAM_MIN_DISTANCE_SQ
+-                                && distanceSq(frames[j + 1], frames[j]) <= STREAM_MAX_DISTANCE_SQ
+-                                && cosBetween(frames[j - 1], frames[j], frames[j + 1]) <= STREAM_MAX_COSANGLE)
+-                            {
+-                                points.Add(new PointWithTime(frames[j].frame));
+-                                ++j;
+-                            }
+                             points.Add(new PointWithTime(frames[j].frame));
+-
+-                            interpolators.Add(new StreamInterpolator(points));
+-                            i = j - 1;
+-                            continue;
++                            ++j;
+                         }
+-                    }
++                        points.Add(new PointWithTime(frames[j].frame));
+ 
+-                    interpolators.Sort(new InterpolatorComparer());
++                        interpolators.Add(new LinearInterpolator(points));
++                        i = j - 1;
++                        continue;
++                    }
+ 
+-                    // Cover the rest of the replay.
+-                    var previousFrameIndex = 0;
++                    // Streams.
++                    Func<FrameWithType, FrameWithType, double> distanceSq = (x, y) =>
++                    {
++                        return Math.Pow((y.frame.mouseX - x.frame.mouseX), 2) + Math.Pow((y.frame.mouseY - x.frame.mouseY), 2);
++                    };
+ 
+-                    for (int i = 0; i < interpolators.Count; ++i)
++                    Func<FrameWithType, FrameWithType, FrameWithType, double> cosBetween = (x, y, z) =>
++                    {
++                        var vx = new Vector2(x.frame.mouseX, x.frame.mouseY);
++                        var vy = new Vector2(y.frame.mouseX, y.frame.mouseY);
++                        var vz = new Vector2(z.frame.mouseX, z.frame.mouseY);
++
++                        var v1 = vx - vy;
++                        var v2 = vz - vy;
++                        v1.Normalize();
++                        v2.Normalize();
++
++                        return Vector2.Dot(v1, v2);
++                    };
++
++                    if (ConfigManager.sAutoPlusUseHalfCircleStreamInterp
++                        && i < frames.Count - 2
++                        && (!ConfigManager.sAutoPlusFollowSliders || (frames[i + 1].slider == null || frames[i + 2].slider != frames[i + 1].slider))
++                        && frames[i + 2].type != ObjectType.SPIN
++                        && Math.Abs((frames[i + 2].frame.time - frames[i + 1].frame.time) - (frames[i + 1].frame.time - frames[i].frame.time)) < 2
++                        && distanceSq(frames[i + 2], frames[i + 1]) >= STREAM_MIN_DISTANCE_SQ
++                        && distanceSq(frames[i + 2], frames[i + 1]) <= STREAM_MAX_DISTANCE_SQ
++                        && distanceSq(frames[i + 1], frames[i]) >= STREAM_MIN_DISTANCE_SQ
++                        && distanceSq(frames[i + 1], frames[i]) <= STREAM_MAX_DISTANCE_SQ
++                        && cosBetween(frames[i], frames[i + 1], frames[i + 2]) <= STREAM_MAX_COSANGLE)
+                     {
+-                        var interp = interpolators[i];
++                        var timeBetweenObjects = frames[i + 1].frame.time - frames[i].frame.time;
+ 
+-                        if (interp.StartTime > frames[previousFrameIndex].frame.time)
++                        var points = new List<PointWithTime>();
++                        points.Add(new PointWithTime(frames[i].frame));
++                        points.Add(new PointWithTime(frames[i + 1].frame));
++
++                        int j = i + 2;
++                        while (j < frames.Count - 1
++                            && (!ConfigManager.sAutoPlusFollowSliders || (frames[j].slider == null || frames[j + 1].slider != frames[j].slider))
++                            && frames[j + 1].type != ObjectType.SPIN
++                            && Math.Abs((frames[j + 1].frame.time - frames[j].frame.time) - timeBetweenObjects) < 2
++                            && distanceSq(frames[j + 1], frames[j]) >= STREAM_MIN_DISTANCE_SQ
++                            && distanceSq(frames[j + 1], frames[j]) <= STREAM_MAX_DISTANCE_SQ
++                            && cosBetween(frames[j - 1], frames[j], frames[j + 1]) <= STREAM_MAX_COSANGLE)
+                         {
+-                            var j = previousFrameIndex;
+-                            while (frames[j].frame.time < interp.StartTime)
+-                                ++j;
++                            points.Add(new PointWithTime(frames[j].frame));
++                            ++j;
++                        }
++                        points.Add(new PointWithTime(frames[j].frame));
+ 
+-                            Debug.Assert(frames[j].frame.time == interp.StartTime);
++                        interpolators.Add(new StreamInterpolator(points));
++                        i = j - 1;
++                        continue;
++                    }
++                }
+ 
+-                            var points = new List<PointWithTime>();
+-                            for (int k = previousFrameIndex; k <= j; ++k)
+-                                points.Add(new PointWithTime(frames[k].frame));
++                interpolators.Sort(new InterpolatorComparer());
+ 
+-                            Vector2 startDerivative;
+-                            if (i == 0)
+-                            {
+-                                // First hit object.
+-                                startDerivative.X = (frames[previousFrameIndex].frame.mouseX - spinnerCentre.X) / 1000.0f;
+-                                startDerivative.Y = (frames[previousFrameIndex].frame.mouseY - spinnerCentre.Y) / 1000.0f;
+-                            }
+-                            else
+-                            {
+-                                startDerivative = interpolators[i - 1].DerivativeAtEndTime();
+-                            }
++                // Cover the rest of the replay.
++                var previousFrameIndex = 0;
+ 
+-                            interpolators.Insert(i, new CubicSplineInterpolator(points, startDerivative, interp.DerivativeAtStartTime()));
+-                            ++i;
+-                        }
++                for (int i = 0; i < interpolators.Count; ++i)
++                {
++                    var interp = interpolators[i];
+ 
+-                        while (previousFrameIndex != frames.Count - 1 && frames[previousFrameIndex + 1].frame.time <= interp.EndTime)
+-                            ++previousFrameIndex;
++                    if (interp.StartTime > frames[previousFrameIndex].frame.time)
++                    {
++                        var j = previousFrameIndex;
++                        while (frames[j].frame.time < interp.StartTime)
++                            ++j;
+ 
+-                        Debug.Assert(frames[previousFrameIndex].frame.time == interp.EndTime);
+-                    }
++                        Debug.Assert(frames[j].frame.time == interp.StartTime);
+ 
+-                    // Cover the time from the end of the last interpolator to the end of the replay.
+-                    if (frames[frames.Count - 1].frame.time > frames[previousFrameIndex].frame.time)
+-                    {
+                         var points = new List<PointWithTime>();
+-                        for (int k = previousFrameIndex; k < frames.Count; ++k)
++                        for (int k = previousFrameIndex; k <= j; ++k)
+                             points.Add(new PointWithTime(frames[k].frame));
+ 
+-                        interpolators.Add(new CubicSplineInterpolator(points, interpolators[interpolators.Count - 1].DerivativeAtEndTime(), new Vector2(0, 0)));
++                        Vector2 startDerivative;
++                        if (i == 0)
++                        {
++                            // First hit object.
++                            startDerivative.X = (frames[previousFrameIndex].frame.mouseX - spinnerCentre.X) / 1000.0f;
++                            startDerivative.Y = (frames[previousFrameIndex].frame.mouseY - spinnerCentre.Y) / 1000.0f;
++                        }
++                        else
++                        {
++                            startDerivative = interpolators[i - 1].DerivativeAtEndTime();
++                        }
++
++                        if (ConfigManager.sAutoPlusUseSplineInterp)
++                            interpolators.Insert(i, new CubicSplineInterpolator(points, startDerivative, interp.DerivativeAtStartTime()));
++                        else
++                            interpolators.Insert(i, new LinearInterpolator(points));
++
++                        ++i;
+                     }
++
++                    while (previousFrameIndex != frames.Count - 1 && frames[previousFrameIndex + 1].frame.time <= interp.EndTime)
++                        ++previousFrameIndex;
++
++                    Debug.Assert(frames[previousFrameIndex].frame.time == interp.EndTime);
+                 }
+-                else
++
++                // Cover the time from the end of the last interpolator to the end of the replay.
++                if (frames[frames.Count - 1].frame.time > frames[previousFrameIndex].frame.time)
+                 {
+-                    interpolators.Add(new LinearInterpolator(new List<PointWithTime> {
+-                        new PointWithTime(frames[0].frame),
+-                        new PointWithTime(frames[frames.Count - 1].frame)
+-                    }));
++                    var points = new List<PointWithTime>();
++                    for (int k = previousFrameIndex; k < frames.Count; ++k)
++                        points.Add(new PointWithTime(frames[k].frame));
++
++                    if (ConfigManager.sAutoPlusUseSplineInterp)
++                        interpolators.Add(new CubicSplineInterpolator(points, interpolators[interpolators.Count - 1].DerivativeAtEndTime(), new Vector2(0, 0)));
++                    else
++                        interpolators.Add(new LinearInterpolator(points));
+                 }
+ 
+                 int currentInterpolatorIndex = 0;
+@@ -1382,14 +1377,7 @@ namespace osu.GameModes.Play.Rulesets.Osu
+                         //}
+                 }
+ 
+-                if (INTERPOLATE)
+-                {
+-                    Player.currentScore.PlayerName = "Auto+ Interp";
+-                }
+-                else
+-                {
+-                    Player.currentScore.PlayerName = "Auto+";
+-                }
++                Player.currentScore.PlayerName = "Auto+";
+             }
+ 
+             Player.currentScore.Replay = InputManager.ReplayScore.Replay;
+-- 
+2.19.1
+

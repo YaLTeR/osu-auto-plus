@@ -1,0 +1,25 @@
+From 1b7926c85171589873c232078871cbb8e52faae2 Mon Sep 17 00:00:00 2001
+From: Ivan Molodetskikh <yalterz@gmail.com>
+Date: Wed, 7 Dec 2016 22:41:24 +0300
+Subject: [PATCH 10/28] Changed the stream max distance threshold.
+
+---
+ osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs b/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
+index 765e08f..ffb494f 100644
+--- a/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
++++ b/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
+@@ -1097,7 +1097,7 @@ namespace osu.GameModes.Play.Rulesets.Osu
+                 const double STEP = 1000 / 144.0;
+                 const int TIME_TOO_CLOSE = 10;
+                 double STREAM_MIN_DISTANCE_SQ = 25; // TODO: tune.
+-                double STREAM_MAX_DISTANCE_SQ = 8490; // TODO: tune.
++                double STREAM_MAX_DISTANCE_SQ = 4000; // TODO: tune.
+                 double STREAM_MAX_COSANGLE = -0.5; // TODO: tune.
+                 double SLIDER_DERIVATIVE_FACTOR = ConfigManager.sAutoPlusSliderSpeedFactor;
+ 
+-- 
+2.19.1
+

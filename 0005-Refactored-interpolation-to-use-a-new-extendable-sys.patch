@@ -1,0 +1,910 @@
+From 6335e265dab37044c0c926692846e9cd9e87bb39 Mon Sep 17 00:00:00 2001
+From: Ivan Molodetskikh <yalterz@gmail.com>
+Date: Wed, 7 Dec 2016 15:01:59 +0300
+Subject: [PATCH 05/28] Refactored interpolation to use a new extendable
+ system.
+
+---
+ .../Play/Rulesets/Osu/RulesetOsu_Autoplay.cs  | 361 +++++++++---------
+ osu!/Helpers/IInterpolator.cs                 |  19 +
+ osu!/Helpers/InterpolatorComparer.cs          |  14 +
+ .../Interpolators/CubicSplineInterpolator.cs  | 138 +++++++
+ .../FixedPositionInterpolator.cs              |  44 +++
+ .../Interpolators/LinearInterpolator.cs       |  62 +++
+ .../Interpolators/SliderFollowInterpolator.cs |  87 +++++
+ osu!/Helpers/PointWithTime.cs                 |  31 ++
+ osu!/osu!shared.projitems                     |   7 +
+ 9 files changed, 586 insertions(+), 177 deletions(-)
+ create mode 100644 osu!/Helpers/IInterpolator.cs
+ create mode 100644 osu!/Helpers/InterpolatorComparer.cs
+ create mode 100644 osu!/Helpers/Interpolators/CubicSplineInterpolator.cs
+ create mode 100644 osu!/Helpers/Interpolators/FixedPositionInterpolator.cs
+ create mode 100644 osu!/Helpers/Interpolators/LinearInterpolator.cs
+ create mode 100644 osu!/Helpers/Interpolators/SliderFollowInterpolator.cs
+ create mode 100644 osu!/Helpers/PointWithTime.cs
+
+diff --git a/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs b/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
+index 68faf46..2349dd1 100644
+--- a/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
++++ b/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
+@@ -15,6 +15,7 @@ using System.IO;
+ using osu_common.Helpers;
+ using System.Runtime.InteropServices;
+ using osu.Configuration;
++using osu.Helpers.Interpolators;
+ 
+ /*
+  * Auto+ changelog.
+@@ -47,35 +48,6 @@ namespace osu.GameModes.Play.Rulesets.Osu
+ {
+     internal partial class RulesetOsu
+     {
+-        [StructLayout(LayoutKind.Sequential)]
+-        unsafe struct SplinePoints
+-        {
+-            public double* ts;
+-            public double* xs;
+-            public double* ys;
+-            public UInt32 n;
+-
+-            IntPtr private_data;
+-        }
+-
+-        [DllImport("Spline.dll", CallingConvention = CallingConvention.Cdecl)]
+-        static extern void spline_interp(double step,
+-                                         double d1_x,
+-                                         double d1_y,
+-                                         double dn_x,
+-                                         double dn_y,
+-                                         [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 8)]
+-                                         double[] ts,
+-                                         [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 8)]
+-                                         double[] xs,
+-                                         [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 8)]
+-                                         double[] ys,
+-                                         UInt32 n,
+-                                         out SplinePoints result);
+-
+-        [DllImport("Spline.dll", CallingConvention = CallingConvention.Cdecl)]
+-        static extern void spline_free(ref SplinePoints spline_points);
+-
+         internal class bReplayFrameComparer : IComparer<bReplayFrame>
+         {
+             public int Compare(bReplayFrame f1, bReplayFrame f2)
+@@ -1118,8 +1090,7 @@ namespace osu.GameModes.Play.Rulesets.Osu
+                         AddFrameWithTypeToReplay(frames, new FrameWithType(new bReplayFrame((int)t, pos.X, pos.Y, pButtonState.None), ObjectType.SPIN));
+                     }
+                 }
+-
+-                SplinePoints spline = new SplinePoints();
++                
+                 int splineEndTime = frames[0].frame.time - 1;
+                 UInt32 currentSplinePoint = 0;
+ 
+@@ -1130,177 +1101,213 @@ namespace osu.GameModes.Play.Rulesets.Osu
+                 bool FOLLOW_SLIDERS = (ConfigManager.sAutoPlusType != AutoPlusType.Normal);
+                 bool INTERPOLATE = (ConfigManager.sAutoPlusType == AutoPlusType.Interpolate);
+ 
+-                // Generate the final replay.
+-                for (int i = 0; i < frames.Count; ++i)
+-                {
+-                    var frame = frames[i].frame;
+-                    replay.Add(new bReplayFrame(frame.time, frame.mouseX, frame.mouseY, frame.buttonState));
+-
+-                    var buttonState = frame.buttonState;
++                List<IInterpolator> interpolators = new List<IInterpolator>();
+ 
+-                    if (frames[i].type != ObjectType.SPIN)
++                if (FOLLOW_SLIDERS || INTERPOLATE)
++                {
++                    for (int i = 0; i < frames.Count; ++i)
+                     {
+-                        if (i == frames.Count - 1 || (frames[i + 1].type == ObjectType.CLICK || frames[i + 1].type == ObjectType.SPIN))
++                        // Slider following.
++                        if (FOLLOW_SLIDERS)
+                         {
+-                            replay.Add(new bReplayFrame(frame.time, frame.mouseX, frame.mouseY, pButtonState.None));
+-                            buttonState = pButtonState.None;
++                            if (i != frames.Count - 1 && frames[i].slider != null && frames[i + 1].slider == frames[i].slider)
++                            {
++                                int j = i + 1;
++                                while (j != frames.Count - 1 && frames[j + 1].slider == frames[j].slider)
++                                    ++j;
++
++                                interpolators.Add(new SliderFollowInterpolator(frames[i].frame.time, frames[j].frame.time, frames[i].slider));
++                                i = j - 1;
++                                continue;
++                            }
+                         }
+ 
+-                        if (FOLLOW_SLIDERS)
++                        // Spinners.
++                        if (frames[i].type == ObjectType.SPIN)
+                         {
+-                            // Follow the sliders.
+-                            if (i != frames.Count - 1 && frames[i].slider != null && frames[i + 1].slider == frames[i].slider)
++                            var points = new List<PointWithTime>();
++                            points.Add(new PointWithTime(frames[i].frame));
++
++                            int j = i + 1;
++                            while (j != frames.Count - 1 && frames[j + 1].type == ObjectType.SPIN)
+                             {
+-                                // This can only be from click to drag or from drag to drag.
+-                                Debug.Assert(frames[i].type == ObjectType.CLICK || frames[i].type == ObjectType.DRAG);
+-                                Debug.Assert(frames[i + 1].type == ObjectType.DRAG);
++                                points.Add(new PointWithTime(frames[j].frame));
++                                ++j;
++                            }
++                            points.Add(new PointWithTime(frames[j].frame));
+ 
+-                                for (double t = frame.time + STEP; t < frames[i + 1].frame.time - STEP / 2; t += STEP)
+-                                {
+-                                    var pos = SliderPositionAtTime(frames[i].slider, (int)t);
+-                                    replay.Add(new bReplayFrame((int)t, pos.X, pos.Y, frame.buttonState));
+-                                }
++                            interpolators.Add(new LinearInterpolator(points));
++                            i = j - 1;
++                            continue;
++                        }
++
++                        // Frames that are too close in time to each other.
++                        if (i != frames.Count - 1 && (frames[i + 1].frame.time - frames[i].frame.time) < TIME_TOO_CLOSE)
++                        {
++                            var points = new List<PointWithTime>();
++                            points.Add(new PointWithTime(frames[i].frame));
++
++                            int j = i + 1;
++                            while (j != frames.Count - 1 && (frames[j + 1].frame.time - frames[j].frame.time) < TIME_TOO_CLOSE)
++                            {
++                                points.Add(new PointWithTime(frames[j].frame));
++                                ++j;
+                             }
++                            points.Add(new PointWithTime(frames[j].frame));
++
++                            interpolators.Add(new LinearInterpolator(points));
++                            i = j - 1;
++                            continue;
+                         }
++                    }
++
++                    interpolators.Sort(new InterpolatorComparer());
++
++                    // Cover the rest of the replay.
++                    var previousFrameIndex = 0;
++
++                    for (int i = 0; i < interpolators.Count; ++i)
++                    {
++                        var interp = interpolators[i];
+ 
+-                        if (INTERPOLATE)
++                        if (interp.StartTime > frames[previousFrameIndex].frame.time)
+                         {
+-                            // Interpolate elsewhere.
+-                            unsafe
++                            var j = previousFrameIndex;
++                            while (frames[j].frame.time < interp.StartTime)
++                                ++j;
++
++                            Debug.Assert(frames[j].frame.time == interp.StartTime);
++
++                            var points = new List<PointWithTime>();
++                            for (int k = previousFrameIndex; k <= j; ++k)
++                                points.Add(new PointWithTime(frames[k].frame));
++
++                            Vector2 startDerivative;
++                            if (i == 0)
+                             {
+-                                // Do we need to make a new spline from this point?
+-                                if (i != frames.Count - 1
+-                                    && splineEndTime <= frame.time
+-                                    && (frames[i].slider == null || frames[i + 1].slider != frames[i].slider)
+-                                    && (frames[i + 1].frame.time - frames[i].frame.time >= TIME_TOO_CLOSE))
+-                                {
+-                                    // Figure out the start derivatives.
+-                                    // Either this is the very first frame, or we're coming out of a slider, or last frame was a spinner,
+-                                    // or last frame was too close in time to this one.
+-                                    double d1_x, d1_y;
++                                // First hit object.
++                                startDerivative.X = (frames[previousFrameIndex].frame.mouseX - spinnerCentre.X) / 1000.0f;
++                                startDerivative.Y = (frames[previousFrameIndex].frame.mouseY - spinnerCentre.Y) / 1000.0f;
++                            }
++                            else
++                            {
++                                startDerivative = interpolators[i - 1].DerivativeAtEndTime();
++                            }
+ 
+-                                    if (i == 0)
+-                                    {
+-                                        d1_x = (frames[0].frame.mouseX - spinnerCentre.X) / 1000.0;
+-                                        d1_y = (frames[0].frame.mouseY - spinnerCentre.Y) / 1000.0;
+-                                    }
+-                                    else
+-                                    {
+-                                        if (frames[i].frame.time - frames[i - 1].frame.time < TIME_TOO_CLOSE)
+-                                        {
+-                                            // The last object was too close in time.
+-                                            d1_x = (frames[i].frame.mouseX - frames[i - 1].frame.mouseX) / 100.0;
+-                                            d1_y = (frames[i].frame.mouseY - frames[i - 1].frame.mouseY) / 100.0;
+-                                        }
+-                                        else
+-                                        {
+-                                            if (frames[i].slider == null)
+-                                            {
+-                                                Debug.Assert(frames[i - 1].type == ObjectType.SPIN);
+-
+-                                                double t = frame.time - frames[i - 1].frame.time;
+-                                                d1_x = (frames[i].frame.mouseX - spinnerCentre.X) / t;
+-                                                d1_y = (frames[i].frame.mouseY - spinnerCentre.Y) / t;
+-                                            }
+-                                            else
+-                                            {
+-                                                // We're coming out of a slider.
+-                                                Debug.Assert(frames[i - 1].slider == frames[i].slider);
+-
+-                                                var d = SliderDerivativeAtTime(frames[i].slider, frame.time);
+-                                                d1_x = d.X * SLIDER_DERIVATIVE_FACTOR;
+-                                                d1_y = d.Y * SLIDER_DERIVATIVE_FACTOR;
+-                                            }
+-                                        }
+-                                    }
++                            interpolators.Insert(i, new CubicSplineInterpolator(points, startDerivative, interp.DerivativeAtStartTime()));
++                            ++i;
++                        }
+ 
+-                                    // Add points to the interpolation.
+-                                    List<double> ts = new List<double>();
+-                                    List<double> xs = new List<double>();
+-                                    List<double> ys = new List<double>();
++                        while (previousFrameIndex != frames.Count - 1 && frames[previousFrameIndex + 1].frame.time <= interp.EndTime)
++                            ++previousFrameIndex;
+ 
+-                                    ts.Add(frame.time);
+-                                    xs.Add(frame.mouseX);
+-                                    ys.Add(frame.mouseY);
++                        Debug.Assert(frames[previousFrameIndex].frame.time == interp.EndTime);
++                    }
+ 
+-                                    int j;
+-                                    for (j = i + 1; j < frames.Count; ++j)
+-                                    {
+-                                        ts.Add(frames[j].frame.time);
+-                                        xs.Add(frames[j].frame.mouseX);
+-                                        ys.Add(frames[j].frame.mouseY);
++                    // Cover the time from the end of the last interpolator to the end of the replay.
++                    if (frames[frames.Count - 1].frame.time > frames[previousFrameIndex].frame.time)
++                    {
++                        var points = new List<PointWithTime>();
++                        for (int k = previousFrameIndex; k < frames.Count; ++k)
++                            points.Add(new PointWithTime(frames[k].frame));
+ 
+-                                        if (frames[j].type == ObjectType.SPIN // A spinner is starting.
+-                                            || (j != frames.Count - 1 && frames[j].slider != null && frames[j + 1].slider == frames[j].slider) // A slider following is starting.
+-                                            || (j != frames.Count - 1 && frames[j + 1].frame.time - frames[j].frame.time < TIME_TOO_CLOSE)) // Too close in time.
+-                                        {
+-                                            break;
+-                                        }
+-                                    }
++                        interpolators.Add(new CubicSplineInterpolator(points, interpolators[interpolators.Count - 1].DerivativeAtEndTime(), new Vector2(0, 0)));
++                    }
++                }
++                else
++                {
++                    interpolators.Add(new LinearInterpolator(new List<PointWithTime> {
++                        new PointWithTime(frames[0].frame),
++                        new PointWithTime(frames[frames.Count - 1].frame)
++                    }));
++                }
+ 
+-                                    // Figure out the end derivatives.
+-                                    double dn_x, dn_y;
+-                                    // Either we reached the end, or a spinner is starting, or a slider following is starting,
+-                                    // or the next object is too close in time.
+-                                    if (j == frames.Count || frames[j].type == ObjectType.SPIN)
+-                                    {
+-                                        dn_x = 0.0;
+-                                        dn_y = 0.0;
+-                                    }
+-                                    else
+-                                    {
+-                                        if (frames[j + 1].frame.time - frames[j].frame.time < TIME_TOO_CLOSE)
+-                                        {
+-                                            // The last object is too close in time.
+-                                            dn_x = (frames[j + 1].frame.mouseX - frames[j].frame.mouseX) / 100.0;
+-                                            dn_y = (frames[j + 1].frame.mouseY - frames[j].frame.mouseY) / 100.0;
+-                                        }
+-                                        else
+-                                        {
+-                                            Debug.Assert(frames[j].slider != null && frames[j + 1].slider == frames[j].slider);
++                int currentInterpolatorIndex = 0;
++                double currentTime = frames[0].frame.time + STEP;
+ 
+-                                            var d = SliderDerivativeAtTime(frames[j].slider, frames[j].frame.time);
+-                                            dn_x = d.X * SLIDER_DERIVATIVE_FACTOR;
+-                                            dn_y = d.Y * SLIDER_DERIVATIVE_FACTOR;
+-                                        }
+-                                    }
++                // Generate the final replay.
++                for (int i = 0; i < frames.Count; ++i)
++                {
++                    var frame = frames[i].frame;
+ 
+-                                    if (splineEndTime != frames[0].frame.time - 1)
+-                                        spline_free(ref spline);
+-
+-                                    var ts_arr = ts.ToArray();
+-                                    var xs_arr = xs.ToArray();
+-                                    var ys_arr = ys.ToArray();
+-
+-                                    spline_interp(STEP,
+-                                                  d1_x,
+-                                                  d1_y,
+-                                                  dn_x,
+-                                                  dn_y,
+-                                                  ts_arr,
+-                                                  xs_arr,
+-                                                  ys_arr,
+-                                                  (UInt32)ts.Count,
+-                                                  out spline);
+-
+-                                    if (j == frames.Count)
+-                                        --j;
+-                                    splineEndTime = frames[j].frame.time;
+-                                    currentSplinePoint = 0;
+-                                }
++                    // Interpolate.
++                    {
++                        while (currentTime < frame.time)
++                        {
++                            var interp = interpolators[currentInterpolatorIndex];
++                            while (currentTime > interp.EndTime)
++                            {
++                                ++currentInterpolatorIndex;
++                                interp = interpolators[currentInterpolatorIndex];
++                            }
+ 
+-                                // Do we need to interpolate the cursor between this frame and the next frame?
+-                                if (i != frames.Count - 1 && splineEndTime > frame.time && (frames[i].slider == null || frames[i + 1].slider != frames[i].slider))
+-                                {
+-                                    while (currentSplinePoint < spline.n && (int)spline.ts[currentSplinePoint] < frames[i + 1].frame.time)
+-                                    {
+-                                        replay.Add(new bReplayFrame((int)spline.ts[currentSplinePoint], (float)spline.xs[currentSplinePoint], (float)spline.ys[currentSplinePoint], buttonState));
+-                                        ++currentSplinePoint;
+-                                    }
+-                                }
++                            if (!interp.Ignored())
++                            {
++                                var pos = interp.PositionAtTime((int)currentTime);
++                                var buttonState = replay[replay.Count - 1].buttonState;
++
++                                replay.Add(new bReplayFrame((int)currentTime, pos.X, pos.Y, buttonState));
+                             }
++
++                            currentTime += STEP;
+                         }
++
++                        if ((int)currentTime == frame.time)
++                            currentTime += STEP;
+                     }
++
++                    replay.Add(new bReplayFrame(frame.time, frame.mouseX, frame.mouseY, frame.buttonState));
++
++                    if (frames[i].type != ObjectType.SPIN)
++                    {
++                        if (i == frames.Count - 1 || (frames[i + 1].type == ObjectType.CLICK || frames[i + 1].type == ObjectType.SPIN))
++                        {
++                            replay.Add(new bReplayFrame(frame.time, frame.mouseX, frame.mouseY, pButtonState.None));
++                        }
++                    }
++
++                        //if (FOLLOW_SLIDERS)
++                        //{
++                        //    // Follow the sliders.
++                        //    if (i != frames.Count - 1 && frames[i].slider != null && frames[i + 1].slider == frames[i].slider)
++                        //    {
++                        //        // This can only be from click to drag or from drag to drag.
++                        //        Debug.Assert(frames[i].type == ObjectType.CLICK || frames[i].type == ObjectType.DRAG);
++                        //        Debug.Assert(frames[i + 1].type == ObjectType.DRAG);
++
++                        //        for (double t = frame.time + STEP; t < frames[i + 1].frame.time - STEP / 2; t += STEP)
++                        //        {
++                        //            var pos = SliderPositionAtTime(frames[i].slider, (int)t);
++                        //            replay.Add(new bReplayFrame((int)t, pos.X, pos.Y, frame.buttonState));
++                        //        }
++                        //    }
++                        //}
++
++                        //if (INTERPOLATE)
++                        //{
++                        //    // Interpolate elsewhere.
++                        //    unsafe
++                        //    {
++                        //        // Do we need to make a new spline from this point?
++                        //        if (i != frames.Count - 1
++                        //            && splineEndTime <= frame.time
++                        //            && (frames[i].slider == null || frames[i + 1].slider != frames[i].slider)
++                        //            && (frames[i + 1].frame.time - frames[i].frame.time >= TIME_TOO_CLOSE))
++                        //        {
++                        //            
++                        //        }
++
++                        //        // Do we need to interpolate the cursor between this frame and the next frame?
++                        //        if (i != frames.Count - 1 && splineEndTime > frame.time && (frames[i].slider == null || frames[i + 1].slider != frames[i].slider))
++                        //        {
++                        //            while (currentSplinePoint < spline.n && (int)spline.ts[currentSplinePoint] < frames[i + 1].frame.time)
++                        //            {
++                        //                replay.Add(new bReplayFrame((int)spline.ts[currentSplinePoint], (float)spline.xs[currentSplinePoint], (float)spline.ys[currentSplinePoint], buttonState));
++                        //                ++currentSplinePoint;
++                        //            }
++                        //        }
++                        //    }
++                        //}
+                 }
+ 
+                 if (INTERPOLATE)
+diff --git a/osu!/Helpers/IInterpolator.cs b/osu!/Helpers/IInterpolator.cs
+new file mode 100644
+index 0000000..0571919
+--- /dev/null
++++ b/osu!/Helpers/IInterpolator.cs
+@@ -0,0 +1,19 @@
++﻿using Microsoft.Xna.Framework;
++using System;
++using System.Collections.Generic;
++using System.Text;
++
++namespace osu.Helpers
++{
++    interface IInterpolator
++    {
++        int StartTime { get; }
++        int EndTime { get; }
++
++        bool Ignored();
++        Vector2 PositionAtTime(int time);
++
++        Vector2 DerivativeAtStartTime();
++        Vector2 DerivativeAtEndTime();
++    }
++}
+diff --git a/osu!/Helpers/InterpolatorComparer.cs b/osu!/Helpers/InterpolatorComparer.cs
+new file mode 100644
+index 0000000..cb8ebe2
+--- /dev/null
++++ b/osu!/Helpers/InterpolatorComparer.cs
+@@ -0,0 +1,14 @@
++﻿using System;
++using System.Collections.Generic;
++using System.Text;
++
++namespace osu.Helpers
++{
++    class InterpolatorComparer : IComparer<IInterpolator>
++    {
++        public int Compare(IInterpolator x, IInterpolator y)
++        {
++            return x.StartTime.CompareTo(y.StartTime);
++        }
++    }
++}
+diff --git a/osu!/Helpers/Interpolators/CubicSplineInterpolator.cs b/osu!/Helpers/Interpolators/CubicSplineInterpolator.cs
+new file mode 100644
+index 0000000..f0547fe
+--- /dev/null
++++ b/osu!/Helpers/Interpolators/CubicSplineInterpolator.cs
+@@ -0,0 +1,138 @@
++﻿using System;
++using System.Collections.Generic;
++using System.Text;
++using Microsoft.Xna.Framework;
++using System.Runtime.InteropServices;
++
++namespace osu.Helpers.Interpolators
++{
++    class CubicSplineInterpolator : IInterpolator
++    {
++        [StructLayout(LayoutKind.Sequential)]
++        protected unsafe struct SplinePoints
++        {
++            public double* ts;
++            public double* xs;
++            public double* ys;
++            public UInt32 n;
++
++            IntPtr private_data;
++        }
++
++        [DllImport("Spline.dll", CallingConvention = CallingConvention.Cdecl)]
++        static extern void spline_interp(double step,
++                                         double d1_x,
++                                         double d1_y,
++                                         double dn_x,
++                                         double dn_y,
++                                         [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 8)]
++                                         double[] ts,
++                                         [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 8)]
++                                         double[] xs,
++                                         [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 8)]
++                                         double[] ys,
++                                         UInt32 n,
++                                         out SplinePoints result);
++
++        [DllImport("Spline.dll", CallingConvention = CallingConvention.Cdecl)]
++        static extern void spline_free(ref SplinePoints spline_points);
++
++        public int StartTime { get; }
++        public int EndTime { get; }
++        protected Vector2 DerivativeAtStart;
++        protected Vector2 DerivativeAtEnd;
++        protected SplinePoints Spline;
++        protected int CurrentSplinePointIndex;
++
++        public CubicSplineInterpolator(List<PointWithTime> points, Vector2 derivativeAtStart, Vector2 derivativeAtEnd)
++        {
++            if (points.Count < 2)
++                throw new ArgumentException("Cannot interpolate with less than 2 points.", "points");
++
++            var points_ = new List<PointWithTime>(points);
++            points_.Sort();
++
++            StartTime = points_[0].time;
++            EndTime = points_[points_.Count - 1].time;
++
++            if (StartTime == EndTime)
++                throw new ArgumentException("StartTime must be lower than EndTime.", "points");
++
++            DerivativeAtStart = derivativeAtStart;
++            var len = DerivativeAtStart.Length();
++            if (len > 5)
++                DerivativeAtStart *= (5 / len);
++
++            DerivativeAtEnd = derivativeAtEnd;
++            len = DerivativeAtEnd.Length();
++            if (len > 5)
++                DerivativeAtEnd *= (5 / len);
++
++            // Add points to the interpolation.
++            List<double> ts = new List<double>();
++            List<double> xs = new List<double>();
++            List<double> ys = new List<double>();
++
++            foreach(var point in points_)
++            {
++                ts.Add(point.time);
++                xs.Add(point.pos.X);
++                ys.Add(point.pos.Y);
++            }
++
++            var ts_arr = ts.ToArray();
++            var xs_arr = xs.ToArray();
++            var ys_arr = ys.ToArray();
++
++            spline_interp(1,
++                          DerivativeAtStart.X,
++                          DerivativeAtStart.Y,
++                          DerivativeAtEnd.X,
++                          DerivativeAtEnd.Y,
++                          ts_arr,
++                          xs_arr,
++                          ys_arr,
++                          (UInt32)ts.Count,
++                          out Spline);
++
++            CurrentSplinePointIndex = 0;
++        }
++
++        ~CubicSplineInterpolator()
++        {
++            spline_free(ref Spline);
++        }
++
++        public bool Ignored()
++        {
++            return false;
++        }
++
++        public Vector2 PositionAtTime(int time)
++        {
++            if (time < StartTime || time > EndTime)
++                throw new ArgumentOutOfRangeException("time", time, "Time has to be between StartTime and EndTime.");
++
++            unsafe
++            {
++                while (CurrentSplinePointIndex != Spline.n - 1 && Spline.ts[CurrentSplinePointIndex + 1] <= time)
++                    ++CurrentSplinePointIndex;
++
++                while (Spline.ts[CurrentSplinePointIndex] > time)
++                    --CurrentSplinePointIndex;
++
++                return new Vector2((float)Spline.xs[CurrentSplinePointIndex], (float)Spline.ys[CurrentSplinePointIndex]);
++            }
++        }
++
++        public Vector2 DerivativeAtStartTime()
++        {
++            return DerivativeAtStart;
++        }
++
++        public Vector2 DerivativeAtEndTime()
++        {
++            return DerivativeAtEnd;
++        }
++    }
++}
+diff --git a/osu!/Helpers/Interpolators/FixedPositionInterpolator.cs b/osu!/Helpers/Interpolators/FixedPositionInterpolator.cs
+new file mode 100644
+index 0000000..65b7263
+--- /dev/null
++++ b/osu!/Helpers/Interpolators/FixedPositionInterpolator.cs
+@@ -0,0 +1,44 @@
++﻿using System;
++using System.Collections.Generic;
++using System.Text;
++using Microsoft.Xna.Framework;
++
++namespace osu.Helpers.Interpolators
++{
++    class FixedPositionInterpolator : IInterpolator
++    {
++        public int StartTime { get; }
++        public int EndTime { get; }
++        protected Vector2 Position;
++
++        public FixedPositionInterpolator(int startTime, int endTime, Vector2 position)
++        {
++            StartTime = startTime;
++            EndTime = endTime;
++            Position = position;
++        }
++
++        public bool Ignored()
++        {
++            return false;
++        }
++
++        public Vector2 PositionAtTime(int time)
++        {
++            if (time < StartTime || time > EndTime)
++                throw new ArgumentOutOfRangeException("time", time, "Time has to be between StartTime and EndTime.");
++
++            return Position;
++        }
++
++        public Vector2 DerivativeAtStartTime()
++        {
++            return new Vector2(0, 0);
++        }
++
++        public Vector2 DerivativeAtEndTime()
++        {
++            return new Vector2(0, 0);
++        }
++    }
++}
+diff --git a/osu!/Helpers/Interpolators/LinearInterpolator.cs b/osu!/Helpers/Interpolators/LinearInterpolator.cs
+new file mode 100644
+index 0000000..cf3ab85
+--- /dev/null
++++ b/osu!/Helpers/Interpolators/LinearInterpolator.cs
+@@ -0,0 +1,62 @@
++﻿using System;
++using System.Collections.Generic;
++using System.Text;
++using Microsoft.Xna.Framework;
++
++namespace osu.Helpers.Interpolators
++{
++    class LinearInterpolator : IInterpolator
++    {
++        public int StartTime { get; }
++        public int EndTime { get; }
++        protected List<PointWithTime> Points;
++
++        public LinearInterpolator(List<PointWithTime> points)
++        {
++            if (points.Count < 2)
++                throw new ArgumentException("Cannot interpolate with less than 2 points.", "points");
++
++            Points = new List<PointWithTime>(points);
++            Points.Sort();
++
++            StartTime = Points[0].time;
++            EndTime = Points[Points.Count - 1].time;
++        }
++
++        public bool Ignored()
++        {
++            return true;
++        }
++
++        public Vector2 PositionAtTime(int time)
++        {
++            throw new InvalidOperationException();
++        }
++
++        public Vector2 DerivativeAtStartTime()
++        {
++            if (StartTime == EndTime)
++                return new Vector2(0, 0);
++
++            int i = 1;
++            while (Points[i].time == Points[0].time)
++                ++i;
++
++            return (Points[i].pos - Points[0].pos) / (Points[i].time - Points[0].time);
++        }
++
++        public Vector2 DerivativeAtEndTime()
++        {
++            if (StartTime == EndTime)
++                return new Vector2(0, 0);
++
++            var lastPoint = Points[Points.Count - 1];
++
++            int i = Points.Count - 2;
++            while (Points[i].time == lastPoint.time)
++                --i;
++
++            return (lastPoint.pos - Points[i].pos) / (lastPoint.time - Points[i].time);
++        }
++    }
++}
+diff --git a/osu!/Helpers/Interpolators/SliderFollowInterpolator.cs b/osu!/Helpers/Interpolators/SliderFollowInterpolator.cs
+new file mode 100644
+index 0000000..3cd7ec5
+--- /dev/null
++++ b/osu!/Helpers/Interpolators/SliderFollowInterpolator.cs
+@@ -0,0 +1,87 @@
++﻿using System;
++using System.Collections.Generic;
++using System.Text;
++using Microsoft.Xna.Framework;
++using osu.GameplayElements.HitObjects.Osu;
++using osu.Graphics.Sprites;
++using osu.Configuration;
++
++namespace osu.Helpers.Interpolators
++{
++    class SliderFollowInterpolator : IInterpolator
++    {
++        public int StartTime { get; }
++        public int EndTime { get; }
++        protected SliderOsu Slider;
++
++        public SliderFollowInterpolator(int startTime, int endTime, SliderOsu slider)
++        {
++            StartTime = startTime;
++            EndTime = endTime;
++            Slider = slider;
++
++            // If at some point we start clicking some circles earlier, the StartTime condition should be revised.
++            if (StartTime < slider.StartTime || EndTime > slider.EndTime)
++                throw new ArgumentException("Can't interpolate outside of the slider time.", "slider");
++        }
++
++        public bool Ignored()
++        {
++            return false;
++        }
++
++        public Vector2 PositionAtTime(int time)
++        {
++            if (time < StartTime || time > EndTime)
++                throw new ArgumentOutOfRangeException("time", time, "Time has to be between StartTime and EndTime.");
++
++            foreach (Transformation t in Slider.sliderFollower.Transformations.FindAll(tr => tr.Type == TransformationType.Movement))
++            {
++                if (t.Time1 <= time && t.Time2 >= time)
++                {
++                    if (t.Time1 == t.Time2)
++                        return t.StartVector;
++
++                    var mul = ((float)(time - t.Time1)) / (t.Time2 - t.Time1);
++                    return t.StartVector + (t.EndVector - t.StartVector) * mul;
++                }
++            }
++
++            throw new InvalidOperationException("Failed getting the slider position at time.");
++        }
++
++        public Vector2 DerivativeAtStartTime()
++        {
++            if (Slider.StartTime == Slider.EndTime)
++                return new Vector2(0, 0);
++
++            foreach (Transformation t in Slider.sliderFollower.Transformations.FindAll(tr => tr.Type == TransformationType.Movement))
++            {
++                if (t.Time1 != t.Time2 && t.Time1 <= StartTime && t.Time2 >= StartTime)
++                {
++                    var derivative = (t.EndVector - t.StartVector) / (t.Time2 - t.Time1);
++                    return derivative * (float)ConfigManager.sAutoPlusSliderSpeedFactor.Value;
++                }
++            }
++
++            throw new InvalidOperationException("Failed getting the slider derivative at StartTime.");
++        }
++
++        public Vector2 DerivativeAtEndTime()
++        {
++            if (Slider.StartTime == Slider.EndTime)
++                return new Vector2(0, 0);
++
++            foreach (Transformation t in Slider.sliderFollower.Transformations.FindAll(tr => tr.Type == TransformationType.Movement))
++            {
++                if (t.Time1 != t.Time2 && t.Time1 <= EndTime && t.Time2 >= EndTime)
++                {
++                    var derivative = (t.EndVector - t.StartVector) / (t.Time2 - t.Time1);
++                    return derivative * (float)ConfigManager.sAutoPlusSliderSpeedFactor.Value;
++                }
++            }
++
++            throw new InvalidOperationException("Failed getting the slider derivative at EndTime.");
++        }
++    }
++}
+diff --git a/osu!/Helpers/PointWithTime.cs b/osu!/Helpers/PointWithTime.cs
+new file mode 100644
+index 0000000..c82715b
+--- /dev/null
++++ b/osu!/Helpers/PointWithTime.cs
+@@ -0,0 +1,31 @@
++﻿using Microsoft.Xna.Framework;
++using osu_common.Bancho.Objects;
++using System;
++using System.Collections.Generic;
++using System.Text;
++
++namespace osu.Helpers
++{
++    struct PointWithTime : IComparable<PointWithTime>
++    {
++        public int time;
++        public Vector2 pos;
++
++        public PointWithTime(int time, Vector2 pos)
++        {
++            this.time = time;
++            this.pos = pos;
++        }
++
++        public PointWithTime(bReplayFrame replayFrame)
++        {
++            this.time = replayFrame.time;
++            this.pos = new Vector2(replayFrame.mouseX, replayFrame.mouseY);
++        }
++
++        public int CompareTo(PointWithTime other)
++        {
++            return time.CompareTo(other.time);
++        }
++    }
++}
+diff --git a/osu!/osu!shared.projitems b/osu!/osu!shared.projitems
+index 47b3287..a178acd 100644
+--- a/osu!/osu!shared.projitems
++++ b/osu!/osu!shared.projitems
+@@ -651,8 +651,14 @@
+     <Compile Include="$(MSBuildThisFileDirectory)Helpers\IDebug\Dglobals.cs" />
+     <Compile Include="$(MSBuildThisFileDirectory)Helpers\IDebug\ILinstruction.cs" />
+     <Compile Include="$(MSBuildThisFileDirectory)Helpers\IDebug\MethodBodyReader.cs" />
++    <Compile Include="$(MSBuildThisFileDirectory)Helpers\IInterpolator.cs" />
+     <Compile Include="$(MSBuildThisFileDirectory)Helpers\ImageHelper.cs" />
+     <Compile Include="$(MSBuildThisFileDirectory)Helpers\ImHelper.cs" />
++    <Compile Include="$(MSBuildThisFileDirectory)Helpers\InterpolatorComparer.cs" />
++    <Compile Include="$(MSBuildThisFileDirectory)Helpers\Interpolators\CubicSplineInterpolator.cs" />
++    <Compile Include="$(MSBuildThisFileDirectory)Helpers\Interpolators\FixedPositionInterpolator.cs" />
++    <Compile Include="$(MSBuildThisFileDirectory)Helpers\Interpolators\LinearInterpolator.cs" />
++    <Compile Include="$(MSBuildThisFileDirectory)Helpers\Interpolators\SliderFollowInterpolator.cs" />
+     <Compile Include="$(MSBuildThisFileDirectory)Helpers\IPC.cs" />
+     <Compile Include="$(MSBuildThisFileDirectory)Helpers\ListHelper.cs" />
+     <Compile Include="$(MSBuildThisFileDirectory)Helpers\Native.cs" />
+@@ -665,6 +671,7 @@
+     <Compile Include="$(MSBuildThisFileDirectory)Helpers\pFormStyled.cs">
+       <SubType>Form</SubType>
+     </Compile>
++    <Compile Include="$(MSBuildThisFileDirectory)Helpers\PointWithTime.cs" />
+     <Compile Include="$(MSBuildThisFileDirectory)Helpers\RecycleBin.cs" />
+     <Compile Include="$(MSBuildThisFileDirectory)Helpers\ResolutionHelper.cs" />
+     <Compile Include="$(MSBuildThisFileDirectory)Helpers\RNG.cs" />
+-- 
+2.19.1
+

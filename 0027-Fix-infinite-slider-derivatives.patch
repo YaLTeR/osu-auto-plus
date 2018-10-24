@@ -1,0 +1,56 @@
+From 4849fb81c99f88a4d7c41807d304495095cccd1a Mon Sep 17 00:00:00 2001
+From: Ivan Molodetskikh <yalterz@gmail.com>
+Date: Sun, 19 Mar 2017 09:23:52 +0300
+Subject: [PATCH 27/28] Fix infinite slider derivatives
+
+---
+ osu!/Constants/General_Version.cs                   |  2 +-
+ .../Interpolators/SliderFollowInterpolator.cs       | 13 ++++++++++++-
+ 2 files changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/osu!/Constants/General_Version.cs b/osu!/Constants/General_Version.cs
+index d61252c..24d0894 100644
+--- a/osu!/Constants/General_Version.cs
++++ b/osu!/Constants/General_Version.cs
+@@ -12,6 +12,6 @@ namespace osu
+     {
+         internal static int VERSION = 20161122;
+         internal static int autoplus_version = 0;
+-        internal static int internal_version = 6;
++        internal static int internal_version = 7;
+     }
+ }
+diff --git a/osu!/Helpers/Interpolators/SliderFollowInterpolator.cs b/osu!/Helpers/Interpolators/SliderFollowInterpolator.cs
+index 3cd7ec5..76e69f3 100644
+--- a/osu!/Helpers/Interpolators/SliderFollowInterpolator.cs
++++ b/osu!/Helpers/Interpolators/SliderFollowInterpolator.cs
+@@ -52,6 +52,8 @@ namespace osu.Helpers.Interpolators
+ 
+         public Vector2 DerivativeAtStartTime()
+         {
++            const float SPLINE_DERIVATIVE_MAX = 5;
++
+             if (Slider.StartTime == Slider.EndTime)
+                 return new Vector2(0, 0);
+ 
+@@ -60,7 +62,16 @@ namespace osu.Helpers.Interpolators
+                 if (t.Time1 != t.Time2 && t.Time1 <= StartTime && t.Time2 >= StartTime)
+                 {
+                     var derivative = (t.EndVector - t.StartVector) / (t.Time2 - t.Time1);
+-                    return derivative * (float)ConfigManager.sAutoPlusSliderSpeedFactor.Value;
++                    derivative *= (float)ConfigManager.sAutoPlusSliderSpeedFactor.Value;
++
++                    if (derivative.LengthSquared() > SPLINE_DERIVATIVE_MAX * SPLINE_DERIVATIVE_MAX)
++                    {
++                        derivative = t.EndVector - t.StartVector;
++                        derivative.Normalize();
++                        derivative *= SPLINE_DERIVATIVE_MAX;
++                    }
++
++                    return derivative;
+                 }
+             }
+ 
+-- 
+2.19.1
+

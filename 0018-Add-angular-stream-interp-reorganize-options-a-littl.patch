@@ -1,0 +1,412 @@
+From 0eb1b406d1cee5f0f07af67ada183f7c380dd356 Mon Sep 17 00:00:00 2001
+From: Ivan Molodetskikh <yalterz@gmail.com>
+Date: Mon, 26 Dec 2016 22:25:44 +0300
+Subject: [PATCH 18/28] Add angular stream interp, reorganize options a little
+
+---
+ osu!/Configuration/ConfigManager.cs           |   2 +
+ osu!/GameModes/Options/Options.cs             |  24 ++-
+ .../Play/Rulesets/Osu/RulesetOsu_Autoplay.cs  |  86 +++++++++-
+ .../StreamAngularInterpolator.cs              | 159 ++++++++++++++++++
+ .../Interpolators/StreamInterpolator.cs       |   4 +-
+ osu!/osu!shared.projitems                     |   1 +
+ 6 files changed, 264 insertions(+), 12 deletions(-)
+ create mode 100644 osu!/Helpers/Interpolators/StreamAngularInterpolator.cs
+
+diff --git a/osu!/Configuration/ConfigManager.cs b/osu!/Configuration/ConfigManager.cs
+index b920bc4..67afa49 100644
+--- a/osu!/Configuration/ConfigManager.cs
++++ b/osu!/Configuration/ConfigManager.cs
+@@ -197,6 +197,7 @@ namespace osu.Configuration
+         internal static BindableBool sAutoPlusFollowSliders;
+         internal static BindableBool sAutoPlusUseSplineInterp;
+         internal static BindableBool sAutoPlusUseHalfCircleStreamInterp;
++        internal static BindableBool sAutoPlusUseAngularStreamInterp;
+         internal static Bindable<AutoPlusVersion> sAutoPlusVersion;
+         internal static BindableDouble sAutoPlusSliderSpeedFactor;
+         internal static BindableDouble sAutoPlusStreamSpeedFactor;
+@@ -789,6 +790,7 @@ namespace osu.Configuration
+             sAutoPlusFollowSliders = ReadBool(@"Auto+FollowSliders", true);
+             sAutoPlusUseSplineInterp = ReadBool(@"Auto+UseSplineInterp", true);
+             sAutoPlusUseHalfCircleStreamInterp = ReadBool(@"Auto+UseHalfCircleStreamInterp", true);
++            sAutoPlusUseAngularStreamInterp = ReadBool(@"Auto+UseAngularStreamInterp", true);
+             sAutoPlusVersion = ReadValue<AutoPlusVersion>(@"Auto+Version", AutoPlusVersion.v06);
+             sAutoPlusSaveReplayBeforePlaying = ReadBool(@"Auto+SaveReplayBeforePlaying", false);
+             sAutoPlusSliderSpeedFactor = ReadDouble(@"Auto+SliderSpeedFactor", 4.0);
+diff --git a/osu!/GameModes/Options/Options.cs b/osu!/GameModes/Options/Options.cs
+index 4cb1160..81022a0 100644
+--- a/osu!/GameModes/Options/Options.cs
++++ b/osu!/GameModes/Options/Options.cs
+@@ -881,21 +881,14 @@ namespace osu.GameModes.Options
+                             new OptionCheckbox(@"Smooth cursor trail", @"Slightly different, smoother cursor trail.", ConfigManager.sTrailSmooth),
+                         }
+                     },
+-                    new OptionSection(@"Auto+ Advanced")
++                    new OptionSection(@"Auto+ Interp Advanced")
+                     {
+                         Children = new OptionElement[]
+                         {
+-                            new OptionCheckbox(@"Hide replay interface", @"If enabled, hides the replay UI.", ConfigManager.sHideReplayInterface),
+-                            new OptionCheckbox(@"No cursor trail frame skip", @"If enabled, makes the cursor trail not skip replay frames which looks better.", ConfigManager.sTrailNoFrameSkip),
+-                            new OptionCheckbox(@"Force 1000 FPS", @"If enabled, makes osu! run at constant 1000 FPS.", ConfigManager.sForceFramerate),
+-                            new OptionCheckbox(@"Write to log synchronously", @"If enabled, makes osu! write into the log synchronously. This results in a proper line order in the logs, but also in severe frame drops.", ConfigManager.sSynchronousLog, delegate {
+-                                Logger.SynchronousLog = ConfigManager.sSynchronousLog;
+-                            }),
+-                            new OptionCheckbox(@"Save Auto+ replay before playback", @"If enabled, saves the generated Auto+ replay right after its generation into a file named replay.osr.", ConfigManager.sAutoPlusSaveReplayBeforePlaying),
+-
+                             new OptionCheckbox(@"Follow sliders", @"Makes Auto+ follow sliders.", ConfigManager.sAutoPlusFollowSliders),
+                             new OptionCheckbox(@"Use spline interpolation", @"Use spline interpolation for cursor dancing.", ConfigManager.sAutoPlusUseSplineInterp),
+                             new OptionCheckbox(@"Use half-circle stream interpolation", @"Use half-circle stream interpolation.", ConfigManager.sAutoPlusUseHalfCircleStreamInterp),
++                            new OptionCheckbox(@"Use angular stream interpolation", @"Use angular stream interpolation.", ConfigManager.sAutoPlusUseAngularStreamInterp),
+ 
+                             new OptionTextbox(@"Slider speed factor (4)", ConfigManager.sAutoPlusSliderSpeedFactor.ToString(), false, delegate(object sender, EventArgs e) {
+                                 double val;
+@@ -914,6 +907,19 @@ namespace osu.GameModes.Options
+                             }),
+                         }
+                     },
++                    new OptionSection(@"Auto+ Advanced")
++                    {
++                        Children = new OptionElement[]
++                        {
++                            new OptionCheckbox(@"Hide replay interface", @"If enabled, hides the replay UI.", ConfigManager.sHideReplayInterface),
++                            new OptionCheckbox(@"No cursor trail frame skip", @"If enabled, makes the cursor trail not skip replay frames which looks better.", ConfigManager.sTrailNoFrameSkip),
++                            new OptionCheckbox(@"Force 1000 FPS", @"If enabled, makes osu! run at constant 1000 FPS.", ConfigManager.sForceFramerate),
++                            new OptionCheckbox(@"Write to log synchronously", @"If enabled, makes osu! write into the log synchronously. This results in a proper line order in the logs, but also in severe frame drops.", ConfigManager.sSynchronousLog, delegate {
++                                Logger.SynchronousLog = ConfigManager.sSynchronousLog;
++                            }),
++                            new OptionCheckbox(@"Save Auto+ replay before playback", @"If enabled, saves the generated Auto+ replay right after its generation into a file named replay.osr.", ConfigManager.sAutoPlusSaveReplayBeforePlaying),
++                        }
++                    },
+ #if DEBUG || Release
+                     new OptionSection(@"Debug") {
+                         Children = debugMenu
+diff --git a/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs b/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
+index f6bffbd..5c2d8a4 100644
+--- a/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
++++ b/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
+@@ -340,11 +340,83 @@ namespace osu.GameModes.Play.Rulesets.Osu
+             }
+         }
+ 
++        private void InterpStreamsAngular(List<FrameWithType> frames, List<IInterpolator> interpolators)
++        {
++            double STREAM_MIN_DISTANCE_SQ = 25; // TODO: tune.
++            double STREAM_MAX_DISTANCE_SQ = 8000; // TODO: tune.
++            double STREAM_ANGLED_MAX_COSANGLE = -0.99; // TODO: tune.
++            double STREAM_ANGLED_MIN_COSANGLE2 = -0.01; // TODO: tune.
++            double STREAM_ANGLED_MAX_COSANGLE2 = 0.01; // TODO: tune.
++
++            Func<FrameWithType, FrameWithType, double> distanceSq = (x, y) =>
++            {
++                return Math.Pow((y.frame.mouseX - x.frame.mouseX), 2) + Math.Pow((y.frame.mouseY - x.frame.mouseY), 2);
++            };
++
++            Func<FrameWithType, FrameWithType, FrameWithType, double> cosBetween = (x, y, z) =>
++            {
++                var vx = new Vector2(x.frame.mouseX, x.frame.mouseY);
++                var vy = new Vector2(y.frame.mouseX, y.frame.mouseY);
++                var vz = new Vector2(z.frame.mouseX, z.frame.mouseY);
++
++                var v1 = vx - vy;
++                var v2 = vz - vy;
++                v1.Normalize();
++                v2.Normalize();
++
++                return Vector2.Dot(v1, v2);
++            };
++
++            for (int i = 0; i < frames.Count - 2; ++i)
++            {
++                if (IsCovered(interpolators, frames, i) || IsCovered(interpolators, frames, i + 1))
++                    continue;
++
++                if (Math.Abs((frames[i + 2].frame.time - frames[i + 1].frame.time) - (frames[i + 1].frame.time - frames[i].frame.time)) < 2
++                    && distanceSq(frames[i + 2], frames[i + 1]) >= STREAM_MIN_DISTANCE_SQ
++                    && distanceSq(frames[i + 2], frames[i + 1]) <= STREAM_MAX_DISTANCE_SQ
++                    && distanceSq(frames[i + 1], frames[i]) >= STREAM_MIN_DISTANCE_SQ
++                    && distanceSq(frames[i + 1], frames[i]) <= STREAM_MAX_DISTANCE_SQ)
++                {
++                    var c = cosBetween(frames[i], frames[i + 1], frames[i + 2]);
++                    if (c > STREAM_ANGLED_MAX_COSANGLE && !(c <= STREAM_ANGLED_MAX_COSANGLE2 && c >= STREAM_ANGLED_MIN_COSANGLE2))
++                        continue;
++
++                    var timeBetweenObjects = frames[i + 1].frame.time - frames[i].frame.time;
++
++                    var points = new List<PointWithTime>();
++                    points.Add(new PointWithTime(frames[i].frame));
++                    points.Add(new PointWithTime(frames[i + 1].frame));
++                    points.Add(new PointWithTime(frames[i + 2].frame));
++
++                    int j = i + 3;
++                    while (j < frames.Count
++                        && !IsCovered(interpolators, frames, j - 1)
++                        && Math.Abs((frames[j].frame.time - frames[j - 1].frame.time) - timeBetweenObjects) < 2
++                        && distanceSq(frames[j], frames[j - 1]) >= STREAM_MIN_DISTANCE_SQ
++                        && distanceSq(frames[j], frames[j - 1]) <= STREAM_MAX_DISTANCE_SQ)
++                    {
++                        var c_ = cosBetween(frames[j - 2], frames[j - 1], frames[j]);
++                        if (c_ > STREAM_ANGLED_MAX_COSANGLE && !(c_ <= STREAM_ANGLED_MAX_COSANGLE2 && c_ >= STREAM_ANGLED_MIN_COSANGLE2))
++                            break;
++
++                        points.Add(new PointWithTime(frames[j].frame));
++                        ++j;
++                    }
++
++                    interpolators.Add(new StreamAngularInterpolator(points));
++                    i = j - 2;
++                    continue;
++                }
++            }
++        }
++
+         private void InterpStreams(List<FrameWithType> frames, List<IInterpolator> interpolators)
+         {
+             double STREAM_MIN_DISTANCE_SQ = 25; // TODO: tune.
+             double STREAM_MAX_DISTANCE_SQ = 4000; // TODO: tune.
+             double STREAM_MAX_COSANGLE = -0.5; // TODO: tune.
++            double STREAM_ANGLED_MAX_COSANGLE = -0.99; // TODO: tune.
+ 
+             Func<FrameWithType, FrameWithType, double> distanceSq = (x, y) =>
+             {
+@@ -377,6 +449,10 @@ namespace osu.GameModes.Play.Rulesets.Osu
+                     && distanceSq(frames[i + 1], frames[i]) <= STREAM_MAX_DISTANCE_SQ
+                     && cosBetween(frames[i], frames[i + 1], frames[i + 2]) <= STREAM_MAX_COSANGLE)
+                 {
++                    bool skip = ConfigManager.sAutoPlusUseAngularStreamInterp;
++                    if (cosBetween(frames[i], frames[i + 1], frames[i + 2]) > STREAM_ANGLED_MAX_COSANGLE)
++                        skip = false;
++
+                     var timeBetweenObjects = frames[i + 1].frame.time - frames[i].frame.time;
+ 
+                     var points = new List<PointWithTime>();
+@@ -392,11 +468,16 @@ namespace osu.GameModes.Play.Rulesets.Osu
+                         && distanceSq(frames[j], frames[j - 1]) <= STREAM_MAX_DISTANCE_SQ
+                         && cosBetween(frames[j - 2], frames[j - 1], frames[j]) <= STREAM_MAX_COSANGLE)
+                     {
++                        if (cosBetween(frames[j - 2], frames[j - 1], frames[j]) > STREAM_ANGLED_MAX_COSANGLE)
++                            skip = false;
++
+                         points.Add(new PointWithTime(frames[j].frame));
+                         ++j;
+                     }
+ 
+-                    interpolators.Add(new StreamInterpolator(points));
++                    if (!skip)
++                        interpolators.Add(new StreamInterpolator(points));
++
+                     i = j - 2;
+                     continue;
+                 }
+@@ -1340,6 +1421,9 @@ namespace osu.GameModes.Play.Rulesets.Osu
+                     if (ConfigManager.sAutoPlusUseHalfCircleStreamInterp)
+                         InterpStreams(frames, interpolators);
+ 
++                    if (ConfigManager.sAutoPlusUseAngularStreamInterp)
++                        InterpStreamsAngular(frames, interpolators);
++
+                     // Cover the rest of the replay.
+                     interpolators.Sort(new InterpolatorComparer());
+                     InterpRest(frames, interpolators);
+diff --git a/osu!/Helpers/Interpolators/StreamAngularInterpolator.cs b/osu!/Helpers/Interpolators/StreamAngularInterpolator.cs
+new file mode 100644
+index 0000000..d2abdcf
+--- /dev/null
++++ b/osu!/Helpers/Interpolators/StreamAngularInterpolator.cs
+@@ -0,0 +1,159 @@
++﻿using System;
++using System.Collections.Generic;
++using System.Text;
++using Microsoft.Xna.Framework;
++using osu.Configuration;
++using System.Diagnostics;
++
++namespace osu.Helpers.Interpolators
++{
++    class StreamAngularInterpolator : IInterpolator
++    {
++        public int StartTime { get; }
++        public int EndTime { get; }
++        protected List<PointWithTime> Points;
++        protected List<Vector2> Derivatives;
++        protected int CurrentPointIndex;
++
++        public StreamAngularInterpolator(List<PointWithTime> points)
++        {
++            if (points.Count < 2)
++                throw new ArgumentException("Cannot interpolate with less than 2 points.", "points");
++
++            Points = new List<PointWithTime>(points);
++
++            StartTime = Points[0].time;
++            EndTime = Points[Points.Count - 1].time;
++            Derivatives = new List<Vector2>();
++            CurrentPointIndex = 0;
++
++            ComputeDerivatives();
++        }
++
++        public void ComputeDerivatives()
++        {
++            var pos_difference = Points[1].pos - Points[0].pos;
++            var pos_difference_rotated = new Vector2(-pos_difference.Y, pos_difference.X);
++
++            // The first one is 45 degrees.
++            var derivative = pos_difference + pos_difference_rotated;
++            derivative.Normalize();
++            Derivatives.Add(derivative);
++
++            for (int i = 1; i < Points.Count; ++i)
++            {
++                pos_difference = Points[i].pos - Points[i - 1].pos;
++                pos_difference_rotated = new Vector2(-pos_difference.Y, pos_difference.X);
++                pos_difference_rotated /= 2;
++
++                if (Vector2.Dot(derivative, pos_difference_rotated) < 0)
++                    pos_difference_rotated = -pos_difference_rotated;
++
++                var pos_difference_rotated_normalized = pos_difference_rotated;
++                pos_difference_rotated_normalized.Normalize();
++
++                var s = Vector2.Dot(derivative, pos_difference_rotated_normalized);
++                var c = 1 - s * s;
++                var ctg = c / s;
++
++                var turn_x = pos_difference_rotated.Length() * ctg;
++
++                if (turn_x > pos_difference.Length())
++                    turn_x = pos_difference.Length() / 2;
++
++                var turn_y = pos_difference_rotated.Length();
++
++                if (ctg != 0)
++                    turn_y = turn_x / ctg;
++
++                pos_difference.Normalize();
++                var turn_point = Points[i - 1].pos + pos_difference * turn_x + pos_difference_rotated_normalized * turn_y;
++
++                derivative = Points[i].pos - turn_point;
++                derivative.Normalize();
++                Derivatives.Add(derivative);
++            }
++        }
++
++        public bool Ignored()
++        {
++            return false;
++        }
++
++        public Vector2 PositionAtTime(int time)
++        {
++            if (time < StartTime || time > EndTime)
++                throw new ArgumentOutOfRangeException("time", time, "Time has to be between StartTime and EndTime.");
++
++            while (CurrentPointIndex != Points.Count && Points[CurrentPointIndex + 1].time <= time)
++                ++CurrentPointIndex;
++
++            while (Points[CurrentPointIndex].time > time)
++                --CurrentPointIndex;
++
++            if (Points[CurrentPointIndex].time == time)
++                return Points[CurrentPointIndex].pos;
++
++            var progress = ((float)(time - Points[CurrentPointIndex].time)) / (Points[CurrentPointIndex + 1].time - Points[CurrentPointIndex].time);
++
++            var derivative = Derivatives[CurrentPointIndex];
++
++            var pos_difference = Points[CurrentPointIndex + 1].pos - Points[CurrentPointIndex].pos;
++            var pos_difference_rotated = new Vector2(-pos_difference.Y, pos_difference.X);
++            pos_difference_rotated /= 2;
++
++            if (Vector2.Dot(derivative, pos_difference_rotated) < 0)
++                pos_difference_rotated = -pos_difference_rotated;
++
++            var pos_difference_rotated_normalized = pos_difference_rotated;
++            pos_difference_rotated_normalized.Normalize();
++
++            var s = Vector2.Dot(derivative, pos_difference_rotated_normalized);
++            var c = 1 - s * s;
++            var ctg = c / s;
++
++            var turn_x = pos_difference_rotated.Length() * ctg;
++
++            if (turn_x > pos_difference.Length())
++                turn_x = pos_difference.Length() / 2;
++
++            var turn_y = pos_difference_rotated.Length();
++
++            if (ctg != 0)
++                turn_y = turn_x / ctg;
++
++            pos_difference.Normalize();
++            var turn_point = Points[CurrentPointIndex].pos + pos_difference * turn_x + pos_difference_rotated_normalized * turn_y;
++
++            var len1 = (turn_point - Points[CurrentPointIndex].pos).Length();
++            var len2 = (Points[CurrentPointIndex + 1].pos - turn_point).Length();
++
++            var current_len_pos = progress * (len1 + len2);
++            if (current_len_pos <= len1)
++            {
++                return Points[CurrentPointIndex].pos + derivative * current_len_pos;
++            }
++            else
++            {
++                return turn_point + Derivatives[CurrentPointIndex + 1] * (current_len_pos - len1);
++            }
++        }
++
++        public Vector2 DerivativeAtStartTime()
++        {
++            var posDifference = Points[1].pos - Points[0].pos;
++            var len = posDifference.Length();
++            
++            return (Derivatives[0] * (float)(len / 2) * (float)ConfigManager.sAutoPlusStreamSpeedFactor.Value) / (Points[1].time - Points[0].time);
++        }
++
++        public Vector2 DerivativeAtEndTime()
++        {
++            var index = Points.Count - 2;
++            var posDifference = Points[index + 1].pos - Points[index].pos;
++            var len = posDifference.Length();
++
++            return (Derivatives[Points.Count - 1] * (float)(len / 2) * (float)ConfigManager.sAutoPlusStreamSpeedFactor.Value) / (Points[index + 1].time - Points[index].time);
++        }
++    }
++}
+diff --git a/osu!/Helpers/Interpolators/StreamInterpolator.cs b/osu!/Helpers/Interpolators/StreamInterpolator.cs
+index de98abe..9d8f7cf 100644
+--- a/osu!/Helpers/Interpolators/StreamInterpolator.cs
++++ b/osu!/Helpers/Interpolators/StreamInterpolator.cs
+@@ -81,7 +81,7 @@ namespace osu.Helpers.Interpolators
+             var derivative = (posDifference * (float)xDerivative + posDifferenceRotated * (float)yDerivative);
+             derivative.Normalize();
+ 
+-            return (derivative * (float)len * (float)ConfigManager.sAutoPlusStreamSpeedFactor.Value) / (Points[1].time - Points[0].time);
++            return (derivative * (float)(len / 2) * (float)ConfigManager.sAutoPlusStreamSpeedFactor.Value) / (Points[1].time - Points[0].time);
+         }
+ 
+         public Vector2 DerivativeAtEndTime()
+@@ -105,7 +105,7 @@ namespace osu.Helpers.Interpolators
+             var derivative = (-posDifference * (float)xDerivative + posDifferenceRotated * (float)yDerivative);
+             derivative.Normalize();
+ 
+-            return (derivative * (float)len * (float)ConfigManager.sAutoPlusStreamSpeedFactor.Value) / (Points[index + 1].time - Points[index].time);
++            return (derivative * (float)(len / 2) * (float)ConfigManager.sAutoPlusStreamSpeedFactor.Value) / (Points[index + 1].time - Points[index].time);
+         }
+     }
+ }
+diff --git a/osu!/osu!shared.projitems b/osu!/osu!shared.projitems
+index ecaee5f..c164cee 100644
+--- a/osu!/osu!shared.projitems
++++ b/osu!/osu!shared.projitems
+@@ -659,6 +659,7 @@
+     <Compile Include="$(MSBuildThisFileDirectory)Helpers\Interpolators\FixedPositionInterpolator.cs" />
+     <Compile Include="$(MSBuildThisFileDirectory)Helpers\Interpolators\LinearInterpolator.cs" />
+     <Compile Include="$(MSBuildThisFileDirectory)Helpers\Interpolators\SliderFollowInterpolator.cs" />
++    <Compile Include="$(MSBuildThisFileDirectory)Helpers\Interpolators\StreamAngularInterpolator.cs" />
+     <Compile Include="$(MSBuildThisFileDirectory)Helpers\Interpolators\StreamInterpolator.cs" />
+     <Compile Include="$(MSBuildThisFileDirectory)Helpers\IPC.cs" />
+     <Compile Include="$(MSBuildThisFileDirectory)Helpers\ListHelper.cs" />
+-- 
+2.19.1
+

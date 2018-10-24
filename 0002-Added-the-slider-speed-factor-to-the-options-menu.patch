@@ -1,0 +1,131 @@
+From 1f230505075859c230ef8bba28087371c18939ce Mon Sep 17 00:00:00 2001
+From: Ivan Molodetskikh <yalterz@gmail.com>
+Date: Tue, 6 Dec 2016 22:07:43 +0300
+Subject: [PATCH 02/28] Added the slider speed factor to the options menu.
+
+---
+ osu!/Configuration/ConfigManager.cs           |  2 ++
+ osu!/GameModes/Options/OptionTextbox.cs       | 32 +++++++++++++------
+ osu!/GameModes/Options/Options.cs             |  5 +++
+ .../Play/Rulesets/Osu/RulesetOsu_Autoplay.cs  |  2 +-
+ 4 files changed, 31 insertions(+), 10 deletions(-)
+
+diff --git a/osu!/Configuration/ConfigManager.cs b/osu!/Configuration/ConfigManager.cs
+index 1d985fe..a6fa2dd 100644
+--- a/osu!/Configuration/ConfigManager.cs
++++ b/osu!/Configuration/ConfigManager.cs
+@@ -195,6 +195,7 @@ namespace osu.Configuration
+         internal static BindableBool sAutoPlus;
+         internal static Bindable<AutoPlusType> sAutoPlusType;
+         internal static Bindable<AutoPlusVersion> sAutoPlusVersion;
++        internal static BindableDouble sAutoPlusSliderSpeedFactor;
+         internal static BindableBool sAutoPlusSaveReplayBeforePlaying;
+         internal static BindableBool sForceFramerate;
+         internal static BindableBool sSynchronousLog;
+@@ -781,6 +782,7 @@ namespace osu.Configuration
+             sAutoPlusType = ReadValue<AutoPlusType>(@"Auto+Type", AutoPlusType.Normal);
+             sAutoPlusVersion = ReadValue<AutoPlusVersion>(@"Auto+Version", AutoPlusVersion.v06);
+             sAutoPlusSaveReplayBeforePlaying = ReadBool(@"Auto+SaveReplayBeforePlaying", false);
++            sAutoPlusSliderSpeedFactor = ReadDouble(@"Auto+SliderSpeedFactor", 4.0);
+             sForceFramerate = new BindableBool();
+             sSynchronousLog = ReadBool(@"SynchronousLog", false);
+             sTrailNoFrameSkip = ReadBool(@"TrailNoFrameSkip", true);
+diff --git a/osu!/GameModes/Options/OptionTextbox.cs b/osu!/GameModes/Options/OptionTextbox.cs
+index 1d85b23..140e283 100644
+--- a/osu!/GameModes/Options/OptionTextbox.cs
++++ b/osu!/GameModes/Options/OptionTextbox.cs
+@@ -13,24 +13,38 @@ namespace osu.GameModes.Options
+         internal pTextBox Textbox;
+         Bindable<string> Content;
+         private pText header;
++        event EventHandler ValueChanged;
+ 
+-        public OptionTextbox(string title, bool passwordBox = false)
++        public OptionTextbox(string title, bool passwordBox = false, EventHandler onChange = null)
++            : this(title, string.Empty, passwordBox, onChange)
++        {
++        }
++
++        public OptionTextbox(string title, string content, bool passwordBox = false, EventHandler onChange = null)
+         {
+             header = new pText(title, 12, Vector2.Zero, 1, true, Color.White);
+             spriteManager.Add(header);
+ 
+-            Textbox = new pTextBox(string.Empty, 12, new Vector2(0, header.MeasureText().Y + 5), ELEMENT_SIZE - 5, 1, passwordBox);
+-            Textbox.OnChange += delegate { calculateHeight(); };
++            Textbox = new pTextBox(content, 12, new Vector2(0, header.MeasureText().Y + 5), ELEMENT_SIZE - 5, 1, passwordBox);
++            Textbox.OnChange += delegate {
++                calculateHeight();
++
++                if (ValueChanged != null)
++                    ValueChanged(this, null);
++            };
+             Textbox.OnCommit += delegate { calculateHeight(); };
+             spriteManager.Add(Textbox.SpriteCollection);
+ 
+             addKeyword(title);
+ 
+             calculateHeight();
++
++            if (onChange != null)
++                ValueChanged += onChange;
+         }
+ 
+-        public OptionTextbox(string title, Bindable<string> content, bool passwordBox = false)
+-            : this(title, passwordBox)
++        public OptionTextbox(string title, Bindable<string> content, bool passwordBox = false, EventHandler onChange = null)
++            : this(title, passwordBox, onChange)
+         {
+             Content = content;
+             Content.ValueChanged += contentChange;
+@@ -39,14 +53,14 @@ namespace osu.GameModes.Options
+             Textbox.OnCommit += delegate { content.Value = Textbox.Text; };
+         }
+ 
+-        public OptionTextbox(OsuString title, Bindable<string> content, bool passwordBox = false)
+-            : this(LocalisationManager.GetString(title), content, passwordBox)
++        public OptionTextbox(OsuString title, Bindable<string> content, bool passwordBox = false, EventHandler onChange = null)
++            : this(LocalisationManager.GetString(title), content, passwordBox, onChange)
+         {
+             addKeyword(title.ToString());
+         }
+ 
+-        public OptionTextbox(OsuString title, bool passwordBox = false)
+-            : this(LocalisationManager.GetString(title), passwordBox)
++        public OptionTextbox(OsuString title, bool passwordBox = false, EventHandler onChange = null)
++            : this(LocalisationManager.GetString(title), passwordBox, onChange)
+         {
+             addKeyword(title.ToString());
+         }
+diff --git a/osu!/GameModes/Options/Options.cs b/osu!/GameModes/Options/Options.cs
+index ed5b025..c678f66 100644
+--- a/osu!/GameModes/Options/Options.cs
++++ b/osu!/GameModes/Options/Options.cs
+@@ -883,6 +883,11 @@ namespace osu.GameModes.Options
+                                 new pDropdownItem(@"v0.5", AutoPlusVersion.v05),
+                                 new pDropdownItem(@"v0.6", AutoPlusVersion.v06)
+                             }, ConfigManager.sAutoPlusVersion),
++                            new OptionTextbox(@"Slider speed factor", ConfigManager.sAutoPlusSliderSpeedFactor.ToString(), false, delegate(object sender, EventArgs e) {
++                                double val;
++                                if (double.TryParse(((OptionTextbox)sender).Textbox.Text, out val))
++                                    ConfigManager.sAutoPlusSliderSpeedFactor.Value = val;
++                            }),
+                             new OptionCheckbox(@"Save Auto+ replay before playback", @"If enabled, saves the generated Auto+ replay right after its generation into a file named replay.osr.", ConfigManager.sAutoPlusSaveReplayBeforePlaying),
+                             new OptionCheckbox(@"Force 1000 FPS", @"If enabled, makes osu! run at constant 1000 FPS.", ConfigManager.sForceFramerate),
+                             new OptionCheckbox(@"Write to log synchronously", @"If enabled, makes osu! write into the log synchronously. This results in a proper line order in the logs, but also in severe frame drops.", ConfigManager.sSynchronousLog, delegate {
+diff --git a/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs b/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
+index 8d3fb99..68faf46 100644
+--- a/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
++++ b/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
+@@ -1125,7 +1125,7 @@ namespace osu.GameModes.Play.Rulesets.Osu
+ 
+                 const double STEP = 1000 / 144.0;
+                 const int TIME_TOO_CLOSE = 10;
+-                const double SLIDER_DERIVATIVE_FACTOR = 4.0;
++                double SLIDER_DERIVATIVE_FACTOR = ConfigManager.sAutoPlusSliderSpeedFactor;
+ 
+                 bool FOLLOW_SLIDERS = (ConfigManager.sAutoPlusType != AutoPlusType.Normal);
+                 bool INTERPOLATE = (ConfigManager.sAutoPlusType == AutoPlusType.Interpolate);
+-- 
+2.19.1
+

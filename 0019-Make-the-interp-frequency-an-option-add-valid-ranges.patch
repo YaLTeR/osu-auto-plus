@@ -1,0 +1,145 @@
+From 8d0f99efa89ac43bf31bfb4e10cc07f5c9e62241 Mon Sep 17 00:00:00 2001
+From: Ivan Molodetskikh <yalterz@gmail.com>
+Date: Mon, 26 Dec 2016 22:40:55 +0300
+Subject: [PATCH 19/28] Make the interp frequency an option, add valid ranges
+ into option titles
+
+---
+ osu!/Configuration/ConfigManager.cs                    |  6 ++++--
+ osu!/GameModes/Options/Options.cs                      | 10 ++++++++--
+ .../GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs | 10 ++++++----
+ .../Helpers/Interpolators/StreamAngularInterpolator.cs |  4 ----
+ 4 files changed, 18 insertions(+), 12 deletions(-)
+
+diff --git a/osu!/Configuration/ConfigManager.cs b/osu!/Configuration/ConfigManager.cs
+index 67afa49..bd2ad9e 100644
+--- a/osu!/Configuration/ConfigManager.cs
++++ b/osu!/Configuration/ConfigManager.cs
+@@ -195,10 +195,11 @@ namespace osu.Configuration
+         internal static BindableBool sAutoPlus;
+         internal static BindableBool sAutoPlusInterpolate;
+         internal static BindableBool sAutoPlusFollowSliders;
+-        internal static BindableBool sAutoPlusUseSplineInterp;
++        internal static BindableBool sAutoPlusUseCubicSplineInterp;
+         internal static BindableBool sAutoPlusUseHalfCircleStreamInterp;
+         internal static BindableBool sAutoPlusUseAngularStreamInterp;
+         internal static Bindable<AutoPlusVersion> sAutoPlusVersion;
++        internal static BindableDouble sAutoPlusInterpFrequency;
+         internal static BindableDouble sAutoPlusSliderSpeedFactor;
+         internal static BindableDouble sAutoPlusStreamSpeedFactor;
+         internal static BindableDouble sAutoPlusStreamHalfCircleBorderAngle;
+@@ -788,11 +789,12 @@ namespace osu.Configuration
+             sAutoPlus = ReadBool(@"Auto+", true);
+             sAutoPlusInterpolate = ReadBool(@"Auto+Interpolate", true);
+             sAutoPlusFollowSliders = ReadBool(@"Auto+FollowSliders", true);
+-            sAutoPlusUseSplineInterp = ReadBool(@"Auto+UseSplineInterp", true);
++            sAutoPlusUseCubicSplineInterp = ReadBool(@"Auto+UseSplineInterp", true);
+             sAutoPlusUseHalfCircleStreamInterp = ReadBool(@"Auto+UseHalfCircleStreamInterp", true);
+             sAutoPlusUseAngularStreamInterp = ReadBool(@"Auto+UseAngularStreamInterp", true);
+             sAutoPlusVersion = ReadValue<AutoPlusVersion>(@"Auto+Version", AutoPlusVersion.v06);
+             sAutoPlusSaveReplayBeforePlaying = ReadBool(@"Auto+SaveReplayBeforePlaying", false);
++            sAutoPlusInterpFrequency = ReadDouble(@"Auto+InterpFrequency", 144.0);
+             sAutoPlusSliderSpeedFactor = ReadDouble(@"Auto+SliderSpeedFactor", 4.0);
+             sAutoPlusStreamSpeedFactor = ReadDouble(@"Auto+StreamSpeedFactor", 4.0);
+             sAutoPlusStreamHalfCircleBorderAngle = ReadDouble(@"Auto+StreamHalfCircleBorderAngle", 15.0);
+diff --git a/osu!/GameModes/Options/Options.cs b/osu!/GameModes/Options/Options.cs
+index 81022a0..c8dbbdc 100644
+--- a/osu!/GameModes/Options/Options.cs
++++ b/osu!/GameModes/Options/Options.cs
+@@ -886,10 +886,16 @@ namespace osu.GameModes.Options
+                         Children = new OptionElement[]
+                         {
+                             new OptionCheckbox(@"Follow sliders", @"Makes Auto+ follow sliders.", ConfigManager.sAutoPlusFollowSliders),
+-                            new OptionCheckbox(@"Use spline interpolation", @"Use spline interpolation for cursor dancing.", ConfigManager.sAutoPlusUseSplineInterp),
++                            new OptionCheckbox(@"Use cubic spline interpolation", @"Use cubic spline interpolation for cursor dancing.", ConfigManager.sAutoPlusUseCubicSplineInterp),
+                             new OptionCheckbox(@"Use half-circle stream interpolation", @"Use half-circle stream interpolation.", ConfigManager.sAutoPlusUseHalfCircleStreamInterp),
+                             new OptionCheckbox(@"Use angular stream interpolation", @"Use angular stream interpolation.", ConfigManager.sAutoPlusUseAngularStreamInterp),
+ 
++                            new OptionTextbox(@"Interpolation frequency (144) [0..1000]", ConfigManager.sAutoPlusInterpFrequency.ToString(), false, delegate(object sender, EventArgs e) {
++                                double val;
++                                if (double.TryParse(((OptionTextbox)sender).Textbox.Text, out val))
++                                    ConfigManager.sAutoPlusInterpFrequency.Value = val;
++                            }),
++
+                             new OptionTextbox(@"Slider speed factor (4)", ConfigManager.sAutoPlusSliderSpeedFactor.ToString(), false, delegate(object sender, EventArgs e) {
+                                 double val;
+                                 if (double.TryParse(((OptionTextbox)sender).Textbox.Text, out val))
+@@ -900,7 +906,7 @@ namespace osu.GameModes.Options
+                                 if (double.TryParse(((OptionTextbox)sender).Textbox.Text, out val))
+                                     ConfigManager.sAutoPlusStreamSpeedFactor.Value = val;
+                             }),
+-                            new OptionTextbox(@"Stream half-circle border angle (15)", ConfigManager.sAutoPlusStreamHalfCircleBorderAngle.ToString(), false, delegate(object sender, EventArgs e) {
++                            new OptionTextbox(@"Stream half-circle border angle (15) [0..80]", ConfigManager.sAutoPlusStreamHalfCircleBorderAngle.ToString(), false, delegate(object sender, EventArgs e) {
+                                 double val;
+                                 if (double.TryParse(((OptionTextbox)sender).Textbox.Text, out val))
+                                     ConfigManager.sAutoPlusStreamHalfCircleBorderAngle.Value = val;
+diff --git a/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs b/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
+index 5c2d8a4..d8eba78 100644
+--- a/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
++++ b/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
+@@ -518,7 +518,7 @@ namespace osu.GameModes.Play.Rulesets.Osu
+                         startDerivative = interpolators[i - 1].DerivativeAtEndTime();
+                     }
+ 
+-                    if (ConfigManager.sAutoPlusUseSplineInterp)
++                    if (ConfigManager.sAutoPlusUseCubicSplineInterp)
+                         interpolators.Insert(i, new CubicSplineInterpolator(points, startDerivative, interp.DerivativeAtStartTime()));
+                     else
+                         interpolators.Insert(i, new LinearInterpolator(points));
+@@ -539,7 +539,7 @@ namespace osu.GameModes.Play.Rulesets.Osu
+                 for (int k = previousFrameIndex; k < frames.Count; ++k)
+                     points.Add(new PointWithTime(frames[k].frame));
+ 
+-                if (ConfigManager.sAutoPlusUseSplineInterp)
++                if (ConfigManager.sAutoPlusUseCubicSplineInterp)
+                     interpolators.Add(new CubicSplineInterpolator(points, interpolators[interpolators.Count - 1].DerivativeAtEndTime(), new Vector2(0, 0)));
+                 else
+                     interpolators.Add(new LinearInterpolator(points));
+@@ -1400,8 +1400,6 @@ namespace osu.GameModes.Play.Rulesets.Osu
+                 int splineEndTime = frames[0].frame.time - 1;
+                 UInt32 currentSplinePoint = 0;
+ 
+-                const double STEP = 1000 / 144.0;
+-
+                 List<IInterpolator> interpolators = new List<IInterpolator>();
+ 
+                 if (ConfigManager.sAutoPlusInterpolate)
+@@ -1436,6 +1434,9 @@ namespace osu.GameModes.Play.Rulesets.Osu
+                     }));
+                 }
+ 
++                double FREQUENCY = Math.Min(1000, Math.Max(0, ConfigManager.sAutoPlusInterpFrequency));
++                double STEP = 1000 / FREQUENCY;
++
+                 int currentInterpolatorIndex = 0;
+                 double currentTime = frames[0].frame.time + STEP;
+ 
+@@ -1445,6 +1446,7 @@ namespace osu.GameModes.Play.Rulesets.Osu
+                     var frame = frames[i].frame;
+ 
+                     // Interpolate.
++                    if (FREQUENCY != 0)
+                     {
+                         while (currentTime < frame.time)
+                         {
+diff --git a/osu!/Helpers/Interpolators/StreamAngularInterpolator.cs b/osu!/Helpers/Interpolators/StreamAngularInterpolator.cs
+index d2abdcf..d1a14ed 100644
+--- a/osu!/Helpers/Interpolators/StreamAngularInterpolator.cs
++++ b/osu!/Helpers/Interpolators/StreamAngularInterpolator.cs
+@@ -130,13 +130,9 @@ namespace osu.Helpers.Interpolators
+ 
+             var current_len_pos = progress * (len1 + len2);
+             if (current_len_pos <= len1)
+-            {
+                 return Points[CurrentPointIndex].pos + derivative * current_len_pos;
+-            }
+             else
+-            {
+                 return turn_point + Derivatives[CurrentPointIndex + 1] * (current_len_pos - len1);
+-            }
+         }
+ 
+         public Vector2 DerivativeAtStartTime()
+-- 
+2.19.1
+

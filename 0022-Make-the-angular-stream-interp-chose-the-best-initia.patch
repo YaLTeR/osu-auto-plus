@@ -1,0 +1,56 @@
+From 01e0ffb667c900e634602bbd450d63130b504a61 Mon Sep 17 00:00:00 2001
+From: Ivan Molodetskikh <yalterz@gmail.com>
+Date: Sat, 31 Dec 2016 13:49:38 +0300
+Subject: [PATCH 22/28] Make the angular stream interp chose the best initial
+ direction
+
+---
+ .../Interpolators/StreamAngularInterpolator.cs | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)
+
+diff --git a/osu!/Helpers/Interpolators/StreamAngularInterpolator.cs b/osu!/Helpers/Interpolators/StreamAngularInterpolator.cs
+index d1a14ed..1802cba 100644
+--- a/osu!/Helpers/Interpolators/StreamAngularInterpolator.cs
++++ b/osu!/Helpers/Interpolators/StreamAngularInterpolator.cs
+@@ -35,6 +35,18 @@ namespace osu.Helpers.Interpolators
+             var pos_difference = Points[1].pos - Points[0].pos;
+             var pos_difference_rotated = new Vector2(-pos_difference.Y, pos_difference.X);
+ 
++            // Pick the derivative direction so it goes outwards.
++            if (Points.Count > 2)
++            {
++                var pos_difference_rotated_normalized = pos_difference_rotated;
++                pos_difference_rotated_normalized.Normalize();
++                var next_pos_difference = Points[2].pos - Points[1].pos;
++                next_pos_difference.Normalize();
++
++                if (Vector2.Dot(pos_difference_rotated_normalized, next_pos_difference) > 0.99)
++                    pos_difference_rotated = -pos_difference_rotated;
++            }
++
+             // The first one is 45 degrees.
+             var derivative = pos_difference + pos_difference_rotated;
+             derivative.Normalize();
+@@ -46,6 +58,9 @@ namespace osu.Helpers.Interpolators
+                 pos_difference_rotated = new Vector2(-pos_difference.Y, pos_difference.X);
+                 pos_difference_rotated /= 2;
+ 
++                if (Vector2.Dot(derivative, pos_difference) < 0)
++                    derivative = -derivative;
++
+                 if (Vector2.Dot(derivative, pos_difference_rotated) < 0)
+                     pos_difference_rotated = -pos_difference_rotated;
+ 
+@@ -102,6 +117,9 @@ namespace osu.Helpers.Interpolators
+             var pos_difference_rotated = new Vector2(-pos_difference.Y, pos_difference.X);
+             pos_difference_rotated /= 2;
+ 
++            if (Vector2.Dot(derivative, pos_difference) < 0)
++                derivative = -derivative;
++
+             if (Vector2.Dot(derivative, pos_difference_rotated) < 0)
+                 pos_difference_rotated = -pos_difference_rotated;
+ 
+-- 
+2.19.1
+

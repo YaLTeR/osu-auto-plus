@@ -1,0 +1,27 @@
+From 08280829bff21c83a8edb3a01eceebabc09a9a20 Mon Sep 17 00:00:00 2001
+From: Ivan Molodetskikh <yalterz@gmail.com>
+Date: Sun, 19 Mar 2017 10:48:11 +0300
+Subject: [PATCH 28/28] Fix infinite BPM sliders
+
+---
+ osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs b/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
+index d7af9cb..ef7fa3e 100644
+--- a/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
++++ b/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
+@@ -153,6 +153,10 @@ namespace osu.GameModes.Play.Rulesets.Osu
+                 if (t.Time1 <= time && t.Time2 >= time)
+                 {
+                     var mul = (time - t.Time1) / (t.Time2 - t.Time1);
++
++                    if (float.IsInfinity(mul) || float.IsNaN(mul))
++                        mul = 0;
++
+                     return t.StartVector + (t.EndVector - t.StartVector) * mul;
+                 }
+             }
+-- 
+2.19.1
+

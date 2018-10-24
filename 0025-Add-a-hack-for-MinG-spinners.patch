@@ -1,0 +1,43 @@
+From a03fa86a7470792fed1493f13704f970dc8ba6aa Mon Sep 17 00:00:00 2001
+From: Ivan Molodetskikh <yalterz@gmail.com>
+Date: Sat, 31 Dec 2016 19:00:45 +0300
+Subject: [PATCH 25/28] Add a hack for MinG spinners
+
+---
+ .../Play/Rulesets/Osu/RulesetOsu_Autoplay.cs  | 20 +++++++++++++++++++
+ 1 file changed, 20 insertions(+)
+
+diff --git a/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs b/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
+index c03c107..a2f9863 100644
+--- a/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
++++ b/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
+@@ -1371,6 +1371,26 @@ namespace osu.GameModes.Play.Rulesets.Osu
+                             }
+                         }
+                     }
++
++                    // HACK
++                    foreach (var h in hitObjectManager.hitObjects)
++                    {
++                        if (h.IsType(HitObjectType.Spinner))
++                        {
++                            if (h.StartTime >= h.HittableEndTime)
++                            {
++                                for (int t = h.HittableEndTime + 1; t <= h.StartTime + hitObjectManager.PreEmpt; ++t)
++                                {
++                                    if (HitObjectsMinimalAtTime(t).Contains(h))
++                                    {
++                                        AddFrameWithTypeToReplay(frames, new FrameWithType(new bReplayFrame(t, spinnerCentre.X, spinnerCentre.Y, pButtonState.None), ObjectType.SPIN));
++                                        Debug.Print("Zero or negative-length spinner hack (StartTime = {0}, HittableEndTime = {1}): inserting a frame at {2}.", h.StartTime, h.HittableEndTime, t);
++                                        break;
++                                    }
++                                }
++                            }
++                        }
++                    }
+                 }
+                 else
+                 {
+-- 
+2.19.1
+

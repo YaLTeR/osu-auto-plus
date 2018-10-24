@@ -1,0 +1,163 @@
+From 4f4cced714d4fa9734c96efec034e16064f8261f Mon Sep 17 00:00:00 2001
+From: Ivan Molodetskikh <yalterz@gmail.com>
+Date: Mon, 26 Dec 2016 23:20:06 +0300
+Subject: [PATCH 21/28] Added (0, 0)-interpolator
+
+---
+ osu!/Configuration/ConfigManager.cs           |  2 +
+ osu!/GameModes/Options/Options.cs             |  2 +
+ .../Play/Rulesets/Osu/RulesetOsu_Autoplay.cs  | 29 +++++++-----
+ osu!/Helpers/Interpolators/00Interpolator.cs  | 45 +++++++++++++++++++
+ osu!/osu!shared.projitems                     |  1 +
+ 5 files changed, 67 insertions(+), 12 deletions(-)
+ create mode 100644 osu!/Helpers/Interpolators/00Interpolator.cs
+
+diff --git a/osu!/Configuration/ConfigManager.cs b/osu!/Configuration/ConfigManager.cs
+index 4b00d95..639b045 100644
+--- a/osu!/Configuration/ConfigManager.cs
++++ b/osu!/Configuration/ConfigManager.cs
+@@ -203,6 +203,7 @@ namespace osu.Configuration
+         internal static BindableDouble sAutoPlusSliderSpeedFactor;
+         internal static BindableDouble sAutoPlusStreamSpeedFactor;
+         internal static BindableDouble sAutoPlusStreamHalfCircleBorderAngle;
++        internal static BindableBool sAutoPlus00Interp;
+         internal static BindableBool sAutoPlusSaveReplayBeforePlaying;
+         internal static BindableBool sHideReplayInterface;
+         internal static BindableBool sForceFramerate;
+@@ -798,6 +799,7 @@ namespace osu.Configuration
+             sAutoPlusSliderSpeedFactor = ReadDouble(@"Auto+SliderSpeedFactor", 4.0);
+             sAutoPlusStreamSpeedFactor = ReadDouble(@"Auto+StreamSpeedFactor", 4.0);
+             sAutoPlusStreamHalfCircleBorderAngle = ReadDouble(@"Auto+StreamHalfCircleBorderAngle", 30.0);
++            sAutoPlus00Interp = ReadBool(@"Auto+00Interp", false);
+             sHideReplayInterface = ReadBool(@"HideReplayInterface", false);
+             sForceFramerate = new BindableBool();
+             sSynchronousLog = ReadBool(@"SynchronousLog", false);
+diff --git a/osu!/GameModes/Options/Options.cs b/osu!/GameModes/Options/Options.cs
+index 0b76d85..537834a 100644
+--- a/osu!/GameModes/Options/Options.cs
++++ b/osu!/GameModes/Options/Options.cs
+@@ -911,6 +911,8 @@ namespace osu.GameModes.Options
+                                 if (double.TryParse(((OptionTextbox)sender).Textbox.Text, out val))
+                                     ConfigManager.sAutoPlusStreamHalfCircleBorderAngle.Value = val;
+                             }),
++
++                            new OptionCheckbox(@"(0, 0) interpolation", @"Put the cursor to the top-left corner of the screen whenever possible.", ConfigManager.sAutoPlus00Interp),
+                         }
+                     },
+                     new OptionSection(@"Auto+ Advanced")
+diff --git a/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs b/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
+index d8eba78..d9d5393 100644
+--- a/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
++++ b/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
+@@ -518,7 +518,9 @@ namespace osu.GameModes.Play.Rulesets.Osu
+                         startDerivative = interpolators[i - 1].DerivativeAtEndTime();
+                     }
+ 
+-                    if (ConfigManager.sAutoPlusUseCubicSplineInterp)
++                    if (ConfigManager.sAutoPlus00Interp)
++                        interpolators.Insert(i, new _00Interpolator(points));
++                    else if (ConfigManager.sAutoPlusUseCubicSplineInterp)
+                         interpolators.Insert(i, new CubicSplineInterpolator(points, startDerivative, interp.DerivativeAtStartTime()));
+                     else
+                         interpolators.Insert(i, new LinearInterpolator(points));
+@@ -1407,20 +1409,23 @@ namespace osu.GameModes.Play.Rulesets.Osu
+                     // Make sure spinners aren't interpolated.
+                     InterpSpinners(frames, interpolators);
+ 
+-                    // Slider following.
+-                    if (ConfigManager.sAutoPlusFollowSliders)
+-                        InterpFollowSliders(frames, interpolators);
++                    if (!ConfigManager.sAutoPlus00Interp)
++                    {
++                        // Slider following.
++                        if (ConfigManager.sAutoPlusFollowSliders)
++                            InterpFollowSliders(frames, interpolators);
+ 
+-                    // Don't interpolate frames that are too close to each other:
+-                    // this makes derivatives huge and breaks stuff.
+-                    InterpCloseFrames(frames, interpolators);
++                        // Don't interpolate frames that are too close to each other:
++                        // this makes derivatives huge and breaks stuff.
++                        InterpCloseFrames(frames, interpolators);
+ 
+-                    // Streams.
+-                    if (ConfigManager.sAutoPlusUseHalfCircleStreamInterp)
+-                        InterpStreams(frames, interpolators);
++                        // Streams.
++                        if (ConfigManager.sAutoPlusUseHalfCircleStreamInterp)
++                            InterpStreams(frames, interpolators);
+ 
+-                    if (ConfigManager.sAutoPlusUseAngularStreamInterp)
+-                        InterpStreamsAngular(frames, interpolators);
++                        if (ConfigManager.sAutoPlusUseAngularStreamInterp)
++                            InterpStreamsAngular(frames, interpolators);
++                    }
+ 
+                     // Cover the rest of the replay.
+                     interpolators.Sort(new InterpolatorComparer());
+diff --git a/osu!/Helpers/Interpolators/00Interpolator.cs b/osu!/Helpers/Interpolators/00Interpolator.cs
+new file mode 100644
+index 0000000..5e406df
+--- /dev/null
++++ b/osu!/Helpers/Interpolators/00Interpolator.cs
+@@ -0,0 +1,45 @@
++﻿using System;
++using System.Collections.Generic;
++using System.Text;
++using Microsoft.Xna.Framework;
++
++namespace osu.Helpers.Interpolators
++{
++    class _00Interpolator : IInterpolator
++    {
++        public int StartTime { get; }
++        public int EndTime { get; }
++        protected List<PointWithTime> Points;
++
++        public _00Interpolator(List<PointWithTime> points)
++        {
++            if (points.Count < 2)
++                throw new ArgumentException("Cannot interpolate with less than 2 points.", "points");
++
++            Points = new List<PointWithTime>(points);
++
++            StartTime = Points[0].time;
++            EndTime = Points[Points.Count - 1].time;
++        }
++
++        public bool Ignored()
++        {
++            return false;
++        }
++
++        public Vector2 PositionAtTime(int time)
++        {
++            return new Vector2(0, 0);
++        }
++
++        public Vector2 DerivativeAtStartTime()
++        {
++            return new Vector2(0, 0);
++        }
++
++        public Vector2 DerivativeAtEndTime()
++        {
++            return new Vector2(0, 0);
++        }
++    }
++}
+diff --git a/osu!/osu!shared.projitems b/osu!/osu!shared.projitems
+index c164cee..afcd974 100644
+--- a/osu!/osu!shared.projitems
++++ b/osu!/osu!shared.projitems
+@@ -655,6 +655,7 @@
+     <Compile Include="$(MSBuildThisFileDirectory)Helpers\ImageHelper.cs" />
+     <Compile Include="$(MSBuildThisFileDirectory)Helpers\ImHelper.cs" />
+     <Compile Include="$(MSBuildThisFileDirectory)Helpers\InterpolatorComparer.cs" />
++    <Compile Include="$(MSBuildThisFileDirectory)Helpers\Interpolators\00Interpolator.cs" />
+     <Compile Include="$(MSBuildThisFileDirectory)Helpers\Interpolators\CubicSplineInterpolator.cs" />
+     <Compile Include="$(MSBuildThisFileDirectory)Helpers\Interpolators\FixedPositionInterpolator.cs" />
+     <Compile Include="$(MSBuildThisFileDirectory)Helpers\Interpolators\LinearInterpolator.cs" />
+-- 
+2.19.1
+

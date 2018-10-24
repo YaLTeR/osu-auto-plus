@@ -1,0 +1,3324 @@
+From a96dcd65e6083a43b60b2d322cfc8a2b1fd2686d Mon Sep 17 00:00:00 2001
+From: Ivan Molodetskikh <yalterz@gmail.com>
+Date: Wed, 24 Oct 2018 10:27:04 +0300
+Subject: [PATCH 01/28] Add current state of Auto+ v0.6
+
+---
+ .gitignore                                    |    1 -
+ Spline.dll                                    |  Bin 0 -> 88064 bytes
+ osu!/Audio/AudioEngine.cs                     |   76 +-
+ osu!/Configuration/ConfigManager.cs           |   18 +
+ osu!/Constants/General.cs                     |   29 +-
+ osu!/Constants/General_Version.cs             |   17 +
+ osu!/GameBase.cs                              |   15 +
+ osu!/GameModes/Menus/Menu.cs                  |   24 +-
+ osu!/GameModes/Options/OptionDropdown.cs      |    9 +-
+ osu!/GameModes/Options/Options.cs             |   26 +
+ osu!/GameModes/Play/Player.cs                 |   17 +
+ .../Play/Rulesets/Osu/RulesetOsu_Autoplay.cs  | 1310 +++++++++++++++--
+ osu!/GameModes/Play/Rulesets/Ruleset.cs       |   35 +
+ osu!/GameplayElements/HitObjectManager.cs     |   10 +
+ osu!/GameplayElements/HitObjects/HitCircle.cs |    3 +
+ .../HitObjects/Osu/SliderOsu.cs               |   12 +
+ .../HitObjects/Osu/SpinnerOsu.cs              |    5 +
+ .../Scoring/Processors/ScoreProcessor.cs      |    1 -
+ osu!/GameplayElements/Scoring/Score.cs        |    3 +
+ .../Graphics/Renderers/CursorTrailRenderer.cs |    8 +-
+ osu!/Helpers/ErrorSubmission.cs               |   51 +-
+ osu!/Input/InputManager.cs                    |    9 +-
+ osu!/Online/BanchoClient.cs                   |    5 +-
+ osu!common/Helpers/Logger.cs                  |   21 +-
+ 24 files changed, 1466 insertions(+), 239 deletions(-)
+ create mode 100644 Spline.dll
+ create mode 100644 osu!/Constants/General_Version.cs
+
+diff --git a/.gitignore b/.gitignore
+index 421f147..0ae1c75 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -17,7 +17,6 @@ osu!-iPhone/build/
+ osu!-iPhone/skins/
+ osu!common/Properties/Strings.*.txt
+ osu!/Properties/Strings.*.txt
+-osu!/Constants/General_Version.cs
+ 
+ *.docstates
+ 
+diff --git a/Spline.dll b/Spline.dll
+new file mode 100644
+index 0000000000000000000000000000000000000000..f7600a48d9daa33cb5bc25159e39231a1327ae60
+GIT binary patch
+literal 88064
+zcmeFae_&L_xj%e1dy*Vr!!DRW&?rHIVuLoipu`1DfK8$j+z_+L7Ls5E+^)Z3*aN5p
+z5>Fx=##6cXYOlT5-pWO9?YH)7TWir$yCIl_AM!)^+E}origx0r8i6K3Bj^1*bIvBA
+zXz%^wegAu-oHJ*BJoC&m&ph+YGtbPHerKEHlq5;UKhu<?op{q<fq4E84~Ha;pZfZE
+z>6I~WP21^M{MNKP!rxnyU046W-Sv0gmwnfr_uv0OH2b@&vg_6Rv%hzL_M+R%v+sLg
+z<*IAa(#Gc4pfhTEmX+PSSxNl+XvbQm3f~{?h$=battz+R9l5i4%tG<j#uSS8qhl81
+zT~(Z}EXBL*=Esy|yxZ^m{+J5!-aICNciWxo6?(Vd*&@D|e($a@)s<*jz%NOQ9Vt@l
+z!r4`cxNa$F+BnB}NqPq{Tddgcc=7h&U!VB)h;Wi5B}*Uz{t|ELS$q>Q@s}hO-~)xI
+z-0<7}yu~4{MC?kuXHs&bL+Z9b(bve|HitCmMzYT#)s4hn5b8sE!RT1vseBzgJI^)I
+zRqLY&zkdu5!jIZ&<BgE`%a)`S*VM1PGkT{aEv-cqU`i|S?~nL5>aPIoa*dTuYMh9K
+z04g4f_l@TxfPArQ?q2=9m1~ejNp*ODhSH)7@)cZDzoz~!Bng^;HX>iq*X3Jv?*qt4
+zG?G9o(Uy`6@-0B>|Nr+j6xd0m+U=4K*nbtQSL=0cmje!u_f6eD#3~fSe<sL2*DKB#
+zOXPO{prg!P8S6;7<8#RqSnYnt!T)=fB(c&VZI8m*y>Hd<rm6V;sCu_dKmiYhQNk#a
+z16C;%l9*r7Vse1jqpT=cW9MhL$U6&eba-0!y8W$fiSj6H*T{E>5^}#^aYV;OTtU7J
+z)s28K3gr%mz>PnIoFRZX?@zQZ^St)4R$o9~Go2~<rLHy0Sb^exX`i#yWyqaqmG>?F
+zi_5I`D3amt?eKE}9YpEypSc5=qHRPKqJ_VgZ_gFjAls85km2Xyl_d^Ofb*NA3yZI~
+zp!j#cq4-ZxT(skVpy%aw`4p<1wI`@LLW2LH{0HB%&`;U$4dt~~rAJA&kpWo1i<see
+zKa@Nxw-b8>wBFgn)a?sa20*BlJ1B*n)f>8)>H@vMR2}{yitO+o7HLJYUeT*p#B}vo
+zerj}{;qUD5@39HZiL#vmkn~>AtKHx0;658o{~p5A@b3vn1(hG2FG=nRNgWGFqDgE#
+zE0*;Iviqf0eXMb-65xMwN|N{Ok-CZb^@{HNO4<Dw3HsIByfNK>GCyT)9do;<E<)~p
+zT|LpVH(KGI+K3Eb^xnWy{_0nzX{sk#=`l7K<S&S?6Rfn0^_glne;VJX+@2Jso?sQ-
+zMW@^$@cT)?IpwZOJ>{N|%0LLW@ALX!GWA#i>hq=4|LX$a;R7CzJ`B*z-^)tRtklz}
+z%1~_$EA0a#&df?M;(7fE`cFAIivBadf&QQCYA^E(`j?K-zniMiOHb;h2Xy}lUy)o7
+z>K{YDjHdoEqJCq7`oF`3g%O857LOmcd0d`H)OU0gTGUU`5tNC<V448`E+oB8d9T^w
+z7lJ+irnNIGO_1pzziSB1E<MTmDkBmP;)5ty%+y{GO!D1S-vttW4NcN7IiDsLKbDN9
+z$D(hh2S&KUf-<P0mmb#rUA}$wHyi#~hkuvd`U4&Q1CJ+0>0xV-$M~)*Z367F2(Zg0
+zfYT>QzTE`kl@9;QHVDx2*fR+bT^5K}_(KU0FIym9wn4;h1c=V)!)1p5M2EkZI)?_#
+z!GL>${{$a@&NPX5V(fr;w`~LUx<I`dUlR2?K|NDF%qQcE$Y+$E05yq#TppF7i}!yq
+zOy5qMzONdkC;2t#t*;^SOH+o44EmOp2id!otU=KmhB`2y(5(xF=FqWFp)a;h&b^`a
+zob&6_TKc1No6rbz>N;PL-z=&d(w+K3nK=!)PhY68O)?vkdzN`C%Yyt*S3qjIZqW9)
+z^xI?%gSKVX#1eiH1m%O7BXTG)B7}TXl}dKDBUPYQY@t>xP($@s+tptk<S}H>Q}tq*
+zrM7<T3_9EOVkIJ(H}EUL$f(n?PG%joLWWuuZoaTWOm1va%iGZaD^hZIw+=ezi^eT%
+z?RL&5U8Mfv{@qj6e70c7w|mVExrenc<oY?<7t`0xVTYIUe*?gd6v9*6BX<;8s1^xS
+zYub3(t&+qS)1#Ok3+OQ)k3?JPjrL+LZHcLhcQ0$DNz_7M?l1yVjgslU&b713_}R&#
+z9(-$m?$!&3to#A~XDgm{QgQwXqzwNE4^d4yJE8R|+Q~s6Si$a*^?P$<A@YAbGQ`TY
+z-jd-l)_b1JKcZK>0>P$Nyodoo?F8?V#s{9(9?5c$q{k5Jw1>(GlJo~4Yfi+3tm$^}
+zvK)J;by||X)0Xs4-vCCt&BYdGW3+q|l&%Dnao+%CDWK%vrhFrS!32PP)4v{#2>>uM
+z;m{n@kt8OS1u}mS(*Rqj(0F}W#5L^FVy3&9KD;p+)dLuN{x03W$M=ZKtyP0C+bV;`
+zZ3+(#i18`8??|rmIXtV~-}ZN{b+Ln1{?a{h1;g9l#Y*=S`PR7V_pNqclbnZ)KknbN
+z$j#CLsIrXUe2Q_-{CkYsvMSNd_%LpFuvWdaTQA+?yA5?dhrYlZjjSK`n`UJtLadMf
+z0b!CKr`$D|xpq;loxX+2nj2P=ya70cze3qfb(dA(zw83VC<W9)rI0GiTTw2>_lQ!z
+zAA^cYW$}&3#~M&5D<V~*qWgy{vWo#(Oo)4iOD}Y}A6<?SB{1VRQ>BC>sv)uF@8q*A
+z2+0L#Jz{`vH|rx@r>_?CcaXC46y(A@OoeLvzzs9X8m0b2AVFC1zY$j5dIMTIDhv9q
+z#5d@EGyr+U*0@^w-OW14wM1Ya)G^V&L<JvFZcm`I(|2y|9IFSPq@>bUSRd-(oAH4>
+zr917MA*cr3Xd_`#ibCu52SvBnTKW7tQIh0#jTEF-?&L*@1VSB%w5$V7jN3fC0b<>_
+zEr+Wl-u<uqo$T&~(s24BA-ma!%i6@0(q)e|n%OczH1J`&-=5h{@DH+WKJT)ITbDiD
+zu9|Jj1IQcgWM5P7(_mt2%<s{gbDqQ(tC+|91wl*<c}Bg-4(c0n=IVFkWa^7@=ArSV
+z_$<l^YiH&9TBB^J^^+u{xNiZJY~=AU<g@w<IZG6+N5;DV9qPe9Vx;B!P+UY54C3oB
+zzDmFa%M1DtLY@f)gBs7)?#=Ny)Ll^5E_F|BMqf!FqDMZ2jEfGT+ywcM*5gp)Y<EX<
+z&a)yN!}q1##^X6p;|rv4U)7wmO%$7usy``$0lX=dZ$E3A5h)_sx%n?ni(VD1_ZkQw
+z>5Fp+70LIx`>`Jqyr~6L|Dr>R@u0&fI)}7HIV%EX2>^8#0K_52u2o`-ay)?m73)9)
+ztK<$*D$EyNn7JxO>_H{cslag7%;Bu;AdBW?E*VDbp!?B#z&YSHtHu1Ur$*X<xIthI
+z(ul=5f&`u9)S{eBB1|8m0!TiCw`gy(D8RQ2g87gK0J@Nb63Enz5dBfX!+29cvNhNR
+zDI>of1#OB_&Aisa#_s_nDnn_6123`@GG7<P!7&u=JLP_CJ|dVp*C_UY&$5|+wy{LX
+z?bD+<vsqv602-d2>z~Uu<YXgiCbDG3Wsqbh$aSR?;@2}vanFRf@zjDnLVMgZA*;YG
+z_xIsz|57}lvxhj+Aq$twicKQKbs{b~AcRg$8~Ulo$~WQOoG^d-b3s(}D_fj1+iC*Q
+z$F9bcGu}NDWjt<xBa$G9_Jk0%`~&<85GwEDU$=WESU=QiMsw2fKKyr8B5$Z0bXbWh
+zXP`<9B9GRgpw9FK)a}r^Q36;jAz}f6EE;M=65l)SNBc>tVTeW~Vg^C}?mmIHKN}Gi
+z`2~ORPCI_4)|<`_5HMnj<{Z-Pse7C8M(>gkpg-M#G_pPEg|g9{<3cC^TzD&q#O55D
+zas(ieZx<C1`C<r(d_P1!U_cUvH((+}8A4CngUV4&)UL)Jtt+V_s*w*vBCT0Ky8VAy
+z<CRv8>#4?ZsL|qJVsrY__RNG{(wwsgVbo7A`a`hO3Q_QY9fXECrRf}0CzpHkBq(x3
+zT*}6$j}=8?c0N=gfbPUMiqnh!5G0DwAA&IvkRb6#fbNG{OF$_bKR5>YF#IVW%}+CB
+zj0XQ~c8FEX&Fw_@X67D7htD?Z6!d)-#(+ogKiJJ9Uu!JRS?`_+PA0JgX6lT1P-(MW
+zDWVtW%%W&P=|wqF)D%SpRO5PjiyS#zKVy$#faA}6I!d4{&Z&zyA`aphuKj(26iE^Z
+z5j!D_!32!zFzqeMnTc{%@@;nViqXj{B1v}gEIXNo;;7P2J2}lxt{R=Z0&>ME>i+bv
+z7Pcj$le1B`NT%^-=@q~z4+SuP@!wiSNN7{@l59xN*^tgdGdtq6lUqhgJ)Sccd=`;G
+z>P0py6D~G8&qfqd=tYSLQf{I)pJs{mqCxb29wKe&NJw1)@C*an8t)N_rWoR8(a14K
+zL|zBt2o~~CJQe$_HzBA-KnkiO4+NgbvmbdNP12F0&MJ+j7eQ(W*gr=qQS(CB|1ttw
+zbm{~NvVhPI7>jZO0p13z0w^X1M-Y4ra^Asz4nc2?zHDTrKN2t=gpoB9FG06-1SlEQ
+zp*TSuCrUDidQib4j7RRY%h)Y(j9~P5PJm!ZkgSl(;LeZY!!#m@qiD1rDHd4)+A}Q7
+zvx&hxVn(nE2x9%maAs6(RbkPo#ez?C`aAgdj1(E66E)bT)4v02qLUc!*Fd5OI<-LF
+z+pzdUR(LMT@cSrC<8UPc8dM3`WEly7btWdibYHvs(XU8Vgy0vA3Jb-B)Gv@B)pulV
+zR68fvml^e6wtfl)%~NE!ehs)1l(S~)4WbO`Tveook<MO4;)6aW&<E*cLNTi<fryz<
+z;?ZK++NTb6uW#R)i-kT;wUR1UMOqp3u|k+!;*lI)4GutBg~AR)<YdgH0lB~h)U&Yg
+z1V_-+jfEDZSh{<{0#C<+Y#ST*Fhm%&XlV&B%XfDyAf}Ky7Jy)Q(L?Geu;L0toUwp3
+z)7f8_<b`Pdb}Le;4U0)MPPikd!2Q@RP=Xyo+L(G*0bZ_-HG@{J<%>H8*(+jdFy=M3
+z{v}Ck?~O>#frvw_*%s&IajnPZqnYfW#h@Wz3a**S!-=G9kp#x7N+gvciN+U!p<x>m
+zg2;MSp{#&V$FHy;EY6t;ENCu4{ZxQdoKUNP3Mm{C+6164A}Kqe*_vWM;i3xZ{3--u
+zhmb_%g<?fGk4EejtJMF5m|;O6#4Pb7Vf2Hbq1M28_}nWRaxWL^96BAcVjGPCK8t8h
+z3=DY{;Fr-Cco)hH7}g{Drm7T72W=TlwR}-d0g~))qfRtj9q!GylBxs70i1a(3Ch9(
+z7gP=g1}Ie60y#GcW*fcGrI(T3Nz~)*s0ZOa6eg7u;VQiNcuXe<ucvU574D)u{San|
+zAEfXnR`_WO{|RCCc+NA(Ut8lnz*oc80}EE0WloxlFDrBnLc-i)+jD}f&Vxz+a$`v*
+z|2KlS#Kr%aU>)QPuSiaiuS5|TVQZ?--{HXe4CcAd$vg+crtgb253|dB@2`t8sKsBl
+znoi#l^%mADELGZ|W6k{BqrWACRqGc{)|R^)QSL{74$O1MFK9jMBvXNMgy(iSTfKXI
+z)rxyzr*EHo;SqLlDc^yy#+JxfYmH-=D?BpE0Ebbi)apfY%`!42u^Pp9RP_^JP?)OA
+z&z<yIqB<afsQSgZmn~@h61AhAPG=h`^zO|+zpA-ZRgv5hi&9V1LQ>LVqw29}_z6b0
+z73xOFqUM1ESdX4%H-MIpl(SmdcRK3E0)ZDnsA}!$zSHXG>~>}6-K$rxW>a(b5A+Zn
+zcDM4W&fW7#hg(--$c?StNeNS4+f>!Z77qE^(2_3gOS%3A?aS%wZeU&I{17T7Bi`3o
+z9hcR@nAdzg_+b-09;Sy%k2*XOh}v&jU-x>-S+$~9_tCbSI#}6qT$R0Md|}g<gp+%-
+zgE&(D_hGy&3!nS3PtkE@{2~hxWBqjPFWq|aP<&i~n@)io8w5|3wZnXDszYULd?kO&
+z>P3qJ*K2z`dg)N^L5mLiT6?BC_vxi)K)nZ9^$>{X*+$e;Fl8mErw&?WmniJAuOr}h
+zFCburMZj{4fMrC$G9uvjfg`K#0}Wxth&!1&h&CGXX1z!;WL*Sg{ifO)+XT!>wDbA&
+zxM~g_IrNxHkBjM%fd`Qk^eiK45+4XU_Qw}BVFom(x;Os<^fKi4@RY0$P7v}(f{^<_
+z8(?G9P1io|){6uoU$x>`ADhf>mvi@(Ee-N~4-j|5UX0zQ+*Xn${viyDd8}9wpO!(k
+zY}g=saewPnwU`wS`C8Zbb34f*vQRraeceLVS;n{6mCApDF`D^@3>j8wS-)YV-M50n
+zxSt-^&c<UFJ+7q3<@C4|51W<5%WD6-L3W$W)+oM%s><FGJ(hc9;FA$<r@^@_cbrHW
+z=&3})YbfqwU$EBJ&!#%R$n6lK;h#X5T(6bu(_$)qs`b;U&Qq*ijNW!|4@R##M1taw
+zd*NBOzmk6oX3$zzF2hKE3vIVJ^dweD+j5D?d4Y?1AhBmxsOSq625F4hztE#&sxP$W
+z@Iot_wYj7%l+zQOU=8{>U|9WK&i?4zAN?L#q7<#wW32PEn9+r-uuo5Ag=h4lGaW@F
+zsHKjgA@PDBMF$oR>P3U-6m&FDOz9}J@)TNmFyg=rt?61vIym1b>w{qXDQylct8Rn+
+z9ZwKCXsQbPoR9glX?CQn7}-G8?u0CC)$UXz?1zOB-{GLtQAOVArXpKLicq&%;B<9}
+z-#t3n+5tfZ?9&^iXHX|U2!0M{FNDhEKNH{$*`S0kjkfSlsY$2WPW9}<&_aRuRLWd?
+z9kvv)VK7l^P)s$IPsVO;Jei+{*r4QhtmNpi>b9Q$i!jPjG)w?yNVJl6-XWMeQl166
+z(Xq4z-$jWbd%GD0u%D)JDeBd@BbrT*3G_(z#tPzj{FhdJkK^TjHAXmjsDexoI28A2
+z4Iat;R17HrJ{eRGRqu955l?spTE}n38XCKU-6$Grj;X2MSWh>K@wb8d7XOF8a%`#o
+zi?(V=(&j(D%;AxusgYFP0`BQZrf=#)o{F-~vFIwk4GL#?=Z%tw-$P?*GG&u<zMYSV
+z?@+|ItcV;mGMtVFzlsP$gu9CWE9wJ~?68MYU6lILwUlaAgdr?lcO1B2vxD}!_##9!
+zA9uGbrjJhno%LxqNzu!K{3EL=(Thyg6-fde*!7s>Zv}4VJ7#jY3SJno0&d{DZEN*k
+zO!Y%PAM6@xi@3s#M3JkJvYoQE#5T#^Sp4>q9rVRx=<zN7lOx1P62w?fEqf5yYcm9e
+z5(r`wl~zOOhA#=Bkaur$%>7g=YvmKEY7PcQ>Pa4>RI2=0s{Cb;h&8xcOx2w~pQ_zN
+zJ#q}NM7^dXI#x52qRFh<6TcRZa%>nV{B@+WK3zRY28;i|hZX%M?Up2>HxEZIf6tEA
+zOow`TOTT(qd4QlSLVP)m5dJs{TA>vvg`u9TnNGFDg8IM+)aV>53LC7bKc0h~eC8-K
+z^TJE>Byb@9cM-U3F;!-^u~nS*{!iK@V(mN?%@t#o&3O)84qOCBPefUE&@R0V1UBEn
+zmZ6IVj@ICEsL6aPs5Vl;8(;}c7Iqd;Jwxsz1Qas^4pyG<7+H#$847{{GsA_K7<Em(
+zIY2BjnLBr&k+EoUBq{XPRXgfJ4v(I8FFiBD^t^N>J?E^T=ltb(u6{gYi+H7N5U)$C
+z#4Gs@@tP43ud5g1^~@8=jd(G?v?D6s@{aX*8-8U+Gkv$5z^;5pats~q!18-LCGOaO
+zua4w8JPGfP<furcA=hY!B68I|F{z`m8Q(NAtZyddlfF245Z|rc5=(>E7>tw2gW(rw
+zJpGw;c4*3=qAgZ`d7NbAD@e2j&3R&V7veh{lxlU+=c8PP>d<i{wL+G(`WB}D(bCG2
+zqdbW1u`pj?3(>h45~MuXiQ6!8!@Cj^_7Xc$Y=CIpQzO|SSlj%{(N1qNiCuv<zJsh}
+zp0m^an?lSOna;xqq}<at(|OAGPIL+@b@^^})sJNh6z2k$ue08z?Vjm-NBzVbgHF$O
+z$ItRxz)X-g&g)`rE4Pz;48E}qa*PG!xa>O|g=k>=`rN-5k34<X#cJAKc0kWe7lop!
+z{6279Jd;cK4)D!T3n06q1dB7Moi97uAW07aXmczCf!oIaDT~6QHvTg>GLV4fn-LlR
+zD>CyPh~n$<i4V|)zX&;miZca|i!o4|E=Hz7vZ5m0RI^Mqlh3`H<VkfK-yrfwUEwFu
+z1pZV$2@*b(M?l=ohwvtRs!&O&XC7)1qeqd{)b`{TNp|!909d{Uga=;obumCZgOQAn
+zu_zZud??=YvO`cFeHLV@0<|?+JLgb0aLKCsTNtueSoL2=^@ARO6t4_FODIi6)IeA0
+z;@G)Z+;SN))H9Xn-QN?&qKmaoGttGm|BUV*gr@iW^UwdD%3BdAg1DC*h=scX_&1Ww
+zo#6Td5hXlGGIIlo7few*OTPoFN<R8X@~G9@=i$|~lRn5HRbBkrILub7^S7YaJ?c$h
+zrPnAew>414w?m}SJQTfBTc0Csm}U#8mmTq`<TfOE_cqN1*qHlC$Zry3c82R>+>gpd
+z=Y0lZ0)o4-0VE#djlD*Ewb`Ox<9s5x6isPta7ik9R^cy!H1ux17*q?{R2Iz7!0|*L
+z?a!oJ9PQKwNu}71UGexhi_*z+Q3iCqBsOq(x?d3;M6h1Rh_a%)O6*=s*H)bYaR#l8
+z#bD*{mwa6C+c!|P>FbE5wX{da3>@A;Vj{kp6df}o8`6>a2ffr6LuN)6KCh)frWJs@
+z9x|m<rqVvcKjba#^+G{~YO1Ebb~|9lJuL@S7i&$MP%KHU-JWrsx)4hPN8ovddaN!C
+zzl;W&8QA{vw23f(e+t^vwsR-q+jhq2$v;DLSc$ADvR)$dza+kr@YS|6`dwrJM_WR?
+zJP0v94{HqcKr%Gqx32Q`8$!5-4}evI0ewy<VDjy#1rvqdLNlChY@z2<&Gh_HBRzk;
+zfu6rxkLT*gpL$Nb4Dvl&{rHcf;?+_oUeDhvUOx}x^~@73&)~)UvflC}0tN-1MW91q
+zK!TkW3`GKZ%QlhvLNLHHfd~o!mk$368F2RP@V`jPl<t4U%$NzX1dS?l;JD#`0Yk!S
+z$;HRfBj?(zxy|qoq915-gTP30zuGp?bxCYmGBr}@@NL=*3QKL}!8bA?fPYI5-|01(
+zmFy<W=VRC*4knV!KWOb(!PkERt(&rDQ&xJMpEd38vzjv$Obhm+DC{YNtDK3|A=(5}
+z5&T&^2L9!Cmj^2aOM`>FZwB;L+*Aj#0JBFAwanjVc`}}A13wKr=UFSWvQyN-+KdC#
+z5UqD+x%c?OF_(J4M3J%l_J6m;+<l;$wyF=_A6gnEC3*J-EA>mMjM30l?*319dKny&
+z*2((qieBkr<l%7=H8*|!z57?)0@sE)_eWRVI}TILiHKuP@v8gPah+8WDRe<ebs@^m
+z=)2i;&yS@zr0DedD^ilAXx98XdS%QHq&TJMctqlrib$uVPGIv70}t(xLl=Q~iXG7~
+zm`dJ@evbOlsk*;+!*!9=D(_yaR-?KL{#$Eg{We7}2g)aYO0L?vzYnyFj?oS!S>S4G
+zehL95Menm(E_WnTt4SX~yre`c=;etn@$Pjy;E8ueuK@ASu+l-TJH@+K8%$BXEqm2(
+zZzr;8or+Z);tUgeU-k})jZV}$v#ofNsv^!CBWpn$bZGp`Pp<ne{2egYp{HnZ*tkiS
+zq9x3Y#rguH%(2x`i0R~P?!NM%5ptCC12afb3}G6XV%|_5<YT}zSlO_H7zj`emG%PJ
+z5#+x>u29Xg_&7}HELC^37s^tt5NI?9HEu)|ig`WXO4+n4q;@!YjkeiU2C=!~VK9!u
+zt_e}ZjyT)lMWT@7$&(<Db~fAnD6Mar&NiY|Yc6uXK7(2dJKgsY+w&n<3Q^Q`jx}RW
+zKL?(6)zr4J4sZKU$t7MLKT@C@^s@6xZtbTiIUs!W+$}$%a66IH-9kg#{rX>$)}*l%
+ztw%Q2%6h7?Nk)`&&4knLjpMZ*#aOFg_tI@_QU=<gUr5na?$<wdy0upjUhRHh$r)qq
+z8D=6><I#HZ@Gi>6<NiEjZJu_PzK^bU-{^kVwc5RDD!#huYd3ur!`JD7x9GE%J|D<7
+zHsv+^##rm>dC3MnXsjJHZlPNKF>D|>3O0R>f=!>pu$6ca(3T7tYlr?9ILqh3rLR$N
+z>2nyatey32xahR|0Z`0itVPQ<fnuIGcfbDU3#t3(ucI!LjgvQHanNmbRP>^)DO*x+
+z(b^qahr^0e|H_UC9{F!DOKVTk>F2c%oMz5bqF9b`2Bo*rV+jA00?Ctwe>RV7BVeP$
+zTZ<f9iXC<gXiVu=+}5I`EyYQRyvFQnjd}T^)-sFzY>s>qePm;r&i(*Ia`$a5GPe|)
+zOK#Ubaj2(75n;nW0#uQ%eJX38$zPp*eh4UU18Uoz#p4D1+lhY%@Gnv4)*|PYV&^E_
+z#P|7lS$V9u^V%}dK|>+xzGcbn)F$gw{oEQ-_2H&Z8<E`f89mWmDfqX<gGVqMkD5F@
+zRu|xLe*llQEAZG@ciO!v75{EWwoR4Dwy74`Hr<VEn;t;6P3w?t)26zn9)da0+6a9>
+z-G=7ZPuD)p);>dt;c9F^T2J;sE9^X``rbe*7FuRB1Ec|gSc;yCacD)VaR@87_L&2_
+zYSa{RXZqZxO5BM#j<svuZm85PAEIKg#-BH}ev%qpZ9JEQZ%OcX3UND)vmg!18Vtux
+zsrYw0F=!>C&=$n6F2Ljd03K^s;IXj|33nq7?Zaao;?O?h)kZ)yeoxO^)g8dCmK|yR
+zBpJ58X$B^}^XO?e)L4r_oqenN5p>3A9_))fNl`bOq)*m5WK8f@i#oMGJ1uT6D!xS>
+zu+axkCO9C`p4VY~m2wZm63ccoQEJTANn0k1Qms5GnnsWz!yv&*)YGA!9;_>&i*H#3
+z1*?yoOUQXP`bg8<yVl&-t*+75dz|WhP3zOMlmBH(bRq)NC@=<r%MnnQvXU&c@-|jR
+z_RK3ulV57qWpbUYMV7TEevLOa7jE{LXP|uZf4v5C6lSMPR*=aQ>OEK;Se*hh&t0hB
+ze22e;7fng_I(OdzTIZgC%JOyV+>?m!a8PPnWNx^CnsJqAMkdY?Xsh<Xgbt@z%+kj&
+z!I|qa4gbynKb(%qC#3ri^Na~#f&wg74)C!en6AT#(gYFp^&UQeH!Jn%CD6o&prybS
+zGe(-Vnr*G-Of|inPnt+-Dar}!QqMNf-&A|~`;Y`7(c)hKinbyf4uR=Frs-k15m`2+
+zxZhZ)z^uPe(cz-`u*bVsFYU^|)wTA<d)`ggt55hA`DA3@csUbc1>sGT?rBYDi{{F}
+zqnq8TFu4_h_?SYJq_uN<U};1u=RTOIuydiUIw@9GXt&)H9sU?<#;zS6tc@4L3AByK
+zgRL?DF?}K0b(p^k_s9@G2l>Eo0HVahPm5qDXwY=C;E8~?2|RIY)20MZY)bINCW|M&
+z&8kmo4SOW@s+Qx?8K5~oNI=0>SRBU^*33%Y0);vh0tu>5wngNfd*DFL3t>^`ji^$?
+z(ptTg$j+Vk<o60R;Eo=V^pY(8Q&>Lv;#sy$q9GgJvkk5&7H8Bm!mQ@S8keZhFpHLI
+zs<SfgG}T%BcJvk$ksR}Stj5uQmE1*EyCS(DOfD3rI#cX3WSMoaej$TL0HZagwr5ri
+z+K>v*;V!U>rPE-zFv%V)*NefD_sxSPLo~|GpG60F_ZI3U+3+}rB4#i57GYn;MOOOE
+zc7K=D?l+~TO>!gp>O5W<#FEne_@|iNe8sZc_y_^$RZTZh-?&?Tj8AQ&$LVf4h=NTU
+ztv;HBfEc%F2++87x4eX8ZDSVno97YYX+R0+OYUX^5coMP8nETc`|$=c4pspE#=e)k
+zSw*r{nVL%#sWTFlOiWZV#;!yiD=KJSKoDO9Bx-)NkZ&j81zBKS{sRPYLMW)M$ihA#
+z^sNxtu`i=TLkhGxe7Kv*T+l-g8j08mOTl&+7P*NQzl>h9TKr!KC6M`=7H_7En_QCn
+zF&QDF^jMiu%FAG)$*$y25O-B@3}au#F}Fr@g;7FFX}E?P5B2E{o#>VP!anyCzebX;
+z@QnM37ZG4n^y*#~8frPNSD!@ZxxfDdiY>|_TWW!e!QDfKl%eH9#R1lESa0Y99KGU1
+z%i9~j#r%Ed+AK4#j4y%82pt-W!I@YuX#PIA1ORaQ2uAF8QMd%VHV`j*X>Utx<29_}
+zK>Sy9$_3@s9I%N)aDAtl2eAWgg{A2XwDXggGr_WG6)WvVOBP_aMz7##5H<19D<Enc
+z8_*wPBT(AEfGck()YxExADXBMsWXs1bv`jo{Tgi(#-gjgI9rb1tzoRGcT!lr&s>)k
+z<a<C&(QAu&=Qwn98$I5@LkIu7inrE~LuY7$kRWPpdAt_gNZqhDi>g;=q7A@5K#1cY
+z4Tlv7w8-Wgs3ggNRBJui#%pH6Rtj8~2waWQUHmjc;VeH{D0c<;4=~^XjNb=Vj*u@t
+zWOE*v2toje@_&PsQ|x}0(Nd@BW-wc$yZK90hg!#@HddXftyiR|pG?rR$w<=2`ypoX
+z>y+rVO*fa`zOXxbRnyH&7veq5!n#~g+XGv7C4T_haoV0NQZ=5VHar4OYu=6!3@rh%
+z;wJ-Ob~&F;?2mOE+&3$R;0N@OQHNz>mapi{hP!-4gPUqt3fm~RcFSx->KQEeFQNlk
+z%ahI^cjF@pp{dSA2Cbvd*@2eyO9d*t1A&mS1e;&kWf3Vb8m|*{<e>tmQD>o2)KiH4
+zI=yrdZbnAUvRYaVa{0=HZ8sCX5@-w!^hbd@yUBaJ#oYKHNx7qX^$<oau{9l4)l2(m
+z35=z89|k4X<X}x7#He#O7Q{HuXx3+$*9Q0+(E-HTQ^12@1Mo721ahMk%yXNL#gl&J
+z0DjERwcQ>ah<@f!U#P9wDvma_@$eNEZm>q6vEKgt8#c~hf5OgkxUUkX-$hOt$OQN_
+z3?X3zbQfuD9^VZc-n%X)HX~sM9H<IymUGN*s1&p&t$-QY!5##rE&c1$*ewc6pTt~a
+zod=z*ScpOw3X>9X65cGV0){e|cB9lFv$OFO;~|&xVTGn7rltp%mSGpYoG+uk#x#Td
+zylHr-v*A}*qy)@0nf!4Kp-?DbuFb6E4<Q`SOr+G0N~uNIo}c-zQK?v*lcID#R>%ji
+z(<gz!c?D9u$C=*)n;MP+H;=`rn;TNx&E)&Q0!qu<s*<1SHcnBmDd@wNz3Y>;c9-)M
+zbz4Jv^WKMY`cpm8soRfXWej10nd~Cg$@}0vV^*AGopBHUDhFl#N`I>oO=l&UP|bR=
+z*5~?oqgV-)#lPL3>WI$K)@Mr5V~9U&u1kle7v#5MD-_a8+mtS=wX}`*9m<a-{^L+B
+zp=G7SZ^^ICRIji={t!i<LQw&ee@|oy1bMOrBz{?bRi?Z7K_Epu_&vP)Q{{-X%>7i`
+zLcO}%CKPLnk0%=j$kgLU9&e04jE0cXXivyulwQ^}SB%<8_5?kRUqO;~MW)m<0d3`(
+z^o90pRCpSKW=ST^#UObmali+?qz!wT*2|4VRKG&ga2=^^a303q-yccd6l4-V_|)|1
+za_yYCaVdnG??JiYRt8V1^gf*Q0><beN!!o|!^f3?q6d_)6Hx(VF{6Dl--@c^X{0jF
+zM^l8#Xz^G#YKcF`S5F^Sr8)Fgs!aWa0M)?&4IJATkSQf?$7;#~!mA{ch=D-^4Tj$e
+z=@#POLOd(Y^!8%}{1!D${XJ;{`E}Xq<xMw|_7J_e>BcJ{6{8cGV|tsfqke3EVYb8F
+z@)K0rzd&9coss{b>~4M<pZRK*yX6T4B4(M8fiC_gx)K8+z9IiXmwGWlux5|s{0Fnt
+zv4D0Lpvlo{t1dNPd)VWw_vSyGzV;fnAPY1FW8}DB_2<xx3?+`>(l#PV*QLA!E;i;n
+zm>A-)t5Y)MomI1y{#)p>NCi`fQBRCep^(g2AcND_8YN0&z7)N`KdF)Q#AFNw^-lOd
+zdHa2B(L7_JvUSRhnd-&O$D<Rsh8#CmIn?o5YmydAYCeur&F%5zOJZ851CVG>Ik!I*
+zo4EZ+O7vpzN56!f{Qe|IG_79}(MeIKx4#I5oTISOdb2IBn}`y6;|x|SMnm`M=f!4m
+zG>Zo2WHt_q+A>I{Iye`y^_jfl6Kb+vJ&0qam<C+^sY)~zXY8edA3B7&U+u#dG*l%s
+zV=iVZYnt4xoagOg-xomVKO0;yUk#qa0&t1!JmhuF<vo7_gBK}miA#LrU}w)eh_VgC
+z_6wBMdb6x)fmBi;K>Q3>HlxVny_9zM0_70-z?0LaAZzec@^?w4#*GGhT>S+w0kyo2
+z5|B9tbeIOtHoD+bqM7I1&3h4V6ek&SF<Y$3hO9BH+WH`PRvAGL|1s7vzi@0RHCtlq
+zS8uEUKzkhDpv^x95=zl)!t~}(w}AQgP)A?P=1>g0Gch45d?MUH&37OT;TVYG>@XIY
+z4*_caMpyLSc-7WYlYOauc@E;Pda!2=VP8E+6vkgXr+II57QW+`Xd7MUqSM0ERJ8eZ
+z@VOZPpj!Y4qqdy?P;fpfIAg0SiLC4oly4gH=`}8+#)D~jkl%ycFqacXM=|;E!=Tjx
+zJ`dUh-;Z(1#~?d&V6ibd8A=MmsXPyn*0y6k6k+HXSWIJ^ZyG+Z{X|1u>|9OcnJB@N
+zkQ=F_e2L8|o`hH{8&Lrpt*vmNgQ(M5leJj#R?m$S)Xe6$qrF=LjvLDyAXh92?BD!0
+z<PUZx!1;+?Dl=oA*tLjG2(r8YzmsmZXop2u{XAjAh2_@eesxif!u|jQu9&OlfnmNE
+zbKsBcUEhBn)U_;4?#CIzqpY?62i6RkebF{-qSbzh46EJu$5y-RVv_R^e6qC;kM@_o
+z+(Q<Kjf)ee5X%6v4Q3cJ-jEG)Q*kyu^5{`O4>Hsgub@YrWui%#qp+i9s&B@JZOLnH
+z8m^OUR9UcHk#(yW$BD9GmqOf{-hoy$UW$I#*pS~noNnVk&<cWMLt#s5G0ZpCmwIZT
+z70M8--!NanvO^Xu9QQJ#*@+ei`;a()t##nYpJJuMplJ~$$ipbk>SPGYG2p8?AEWd;
+zy!cW}K|;@B0F0mCh50?28sKjt9?n8C?Hq5<2Jd3s7`>8g@aV4b0luBaXrD+4L1pCo
+z@f`}meh;YVOb#9*Mr%&K411*7e1c%A5NU1j8p$XC7npM>jt%lkg47k#zBHqg;Zhii
+zm{t;pHZ7DgFx&C?f?xz{DnARfu!%ss2or;LzCa@1MDOu(J8qtc!{MAidHaKW5If+Z
+z8dSW9Bpr^uw}oH510z3-xpN1h5u%M&8Z%*Pe}I351mT>N%9GKM_(x#>VJe{Y-$S~V
+zCK^QpXhh}-c_){bk;_)h1!E8BT7g*z6Fa+ai0=hiFsUBKPUw5ph^t`nrn6)?P?KN7
+zV1&ErPmrTJv}~{K@zQJEt%9Ydwu(#MR_t$zy&!;w{+nKaI}Nr}Nm$s@-ucSy00BwK
+zaZif1wFVmmra2E^g<c_L+m6P*h~*2S_0BDCYEY&V1`~HKtAy+;b?FYwJUy=hl(wo9
+z68k`DNb-oiJfpPJ3!4#Eq!6^n=$Z#?srj)KKf(OjSdd#bBaU*tlD_JsejiVu)QKxd
+zER;HMxeGvpE}|h&CeQGLu#e!P7$R3G_M2&c5xau{<iV=6Vki`%U2LtPSBg$v$-n_9
+z4zo|E?p&#hulN|20FPyY*rP&6(8UT^jgWonb{9LsYRMZHO8fONgTdk1*`}Q};X~N~
+z?K}OJ{Poatm4>nS^vy+RV=_|JR4gr)h*A%|4RROi5Yw5u$5-iE=ke`Z=K`eK8mGP1
+z7{b1;?I4@z{b6jawxdC0FuQMv;d+j4;d!gj04oEkl`EOpMTLhll)h?oDtVB>iUhkF
+ze3?qXxwKnWAZy)UQ70A3E7^QO3QX}nn-IgZIDiI+(0cf(dk^xP{y=9Eg67(EbFGWO
+zdd#&LjtZY_={*>*C;+H5zV-3^CM^D0Nshim=3WH#x*W2dQl22coYGXqSC<36%D{(F
+zl7oet?x0bhY!yU*6w1E7=vbJLACe{Y^SDA;3g!48`8$~wmH4|@QL};^k~-k(d?iYa
+z!%FXO;J#tAR#`blkc*Wl-clD|_YO*cghYeY(FsWCD99mZLW%gj@d%EG_+403h-bQZ
+zTCEj9(cmj^G!cp(BFNiA9Y?fPU3@)eRk96Q|Iv~=Ok;w-i}qkuj=fjvx4W{~J=tbA
+zYD=&f?s7oS!8|<VjRgV$(OEE{peo_~wi8GBP#YGk)G=7VV$_Wi77!bxW8xGkWHcS8
+z$gEfzC@TxczB9b1E{2_V501qsD|M{s!1*|`!m8+4>MZXRR_D^ros0SaW489ixv1<r
+zwe}ig_F7~4uRLs=UgFXo0r?Mv#WHW9!k0ptSx1!cu@WEgmsdVP5)KMbCU9&6Sb3mO
+zhORH|B+5p;s81pKck;nwSnIKHCfPRYJZ4=wzX@UmT3WTpLx*9LcGAq%R)K?HP@hDq
+z43G-D%6u@(d@$2|a3&vP7oxc(SXs{Cq2)d9ecRjbHO(XN?T5G4C%6Tq71DkOW;~I)
+z7wM+?F&Gd8i%3hu^~)qr8DIPe9Rv~H!uRGVOUvkFFaN2~r{EB%K-B(TS`MGj{)iNQ
+z7B;#{ekY`?u$4tK%;Zd@Y3-R>N2Yczv;H{N`j)t-wSQZX&7pKmG}-sGXI2_JIc5e-
+zA$QQ+l_rXQmPv=P;<e-`M&rkivlhV5$ZDBIwZ`B~HjZVG;-?)l**<m(TQuIjqX&Hh
+z(eDAS3?=_Arg~`kcQF>cA&?GcZuQ&bmw{DUuT|C?!w|U&90jM3I+6l?D0@+m?}wXk
+zXtOi^nw2g7uJvZSBiZn>f(PBvL*6eo`@EJRgGdL9gLiMGH)hQHQ5FycdT!PUb$Ogo
+z=pY}G>8<e!mi43bQ*c2EOPE2i9bjfe?K;&ft%+M3tW?v2!Qqs6lD8i^!5DaRZHB{Y
+zd;)9VoC=gvgJ#CPRJOgQ)^_L)9{}j^9(qtHB8z1oym$8yo!uCWP)weA4-5jI&$gOs
+zbH;K2Ah8qfrb1oxpim^4GtteU21=puIF$UZC>c*NGr}ll3#@P-72@=uP$Y$yU08DF
+zaLE;;O3J5EXoyNu2+q%wM@rK8wyTYwAcU#fm7@x0Qeh80C=^lnA8C@an@Tcb*va*0
+zR(U`qpk_vu1w{<~*8}LNAo>$LoQ*!+Nt|``pm(o#4)K-m@Fj0+9}H-_v5Avs6v)1P
+zYQNw`q0e6#e1rO#j4F7T<Tzn<2^=TDV@>A>nA#0OiMmjWsKXmec;)S&+RqbM)(EU1
+zIT;?T5q`G3eH~O5Yv#F7eq1L+TM696_|C&Ze!$^!=28~OSt`sCSjb!;K1e7o%JEbL
+zBIm+V?cd8nI>;&8^C^z(kt`%BXhv_;Hss7Qqba^<&aAapLkcq2uW(x1MPhKnuOJ5}
+zTXJyGuM~a@#u}qQEduf1kl3?5kZeKdjje<aE&iG?fdL2fSDA|~b>){SYO)ZGZRKUZ
+z%|jo=$Jqe@!M#cfE??5`aaEKBszOlYAmz-%Z481F?rJk39W9AYcLCCYfy(F@^f|xv
+zj~L65fYH*835V3_GdO-L+}DhjJn#)g{TWeK2B4_7bRnmes0&v!y`>u&b>jp*pX#FL
+zkB-sv*N5r(y90Q_uWeAgj9&5jQKxvd>=Cc$W8(GmU3fk7L`xrDjNI8c0>ZED3<4bj
+zAKR}@Z#gM4!KscAhdBc=B7kDO2w47X5s3}ju4@AA5%0B&$l0CfV3A?ryC8$OC9sxn
+z#VHJ$F9qp9qt~{97x`t_47KCRMkpENA5Iefe{<N&%Ryrd%v@`KZg?)nXcKxR*7J0?
+zVmjTdc%@whvNAE8Xh^1e=TJ?;0}~_78kCT4Z}4lt4F|+LkMq`Kkp&o_7sLvK{`hJu
+z%KD(m^8g$ZcSHqZ$&qCEmj@$`HzvccI~YmgJ)j(BA_&P*zUeh1&3%%Z`)y2GU)Nkh
+zMa%<}L79=J(I%;IqECV^GhMb=!xz3~kr9Uss>l+28)gks)3Lz+EocVK8un<r@iaZn
+zp?Z%V9P!lWFauzf&Z|(6Y=tPej|y6t!sY`Md;S#<(NSfidId@rY2Zq3yB2d+dQJEb
+z<g2brjt?B2-WAP)9|qa+A-Fs3o~amwP%8F)Nf!YQ;e6*?%XrIyQA{ujG=Z&*PZs`+
+z<Jln_z#lMqjun%qOFbzlP)j5z7!716nJV-B3Yp@n+h|thw5%qd>I)hW<d3IYbapo{
+zM2E6TY#$sED~(5KmmV(T<FQc4&xc!HD?HBCzp?$8OjFrI3b>k%Zls}%W+toSa0_Bc
+zDd_nMrEu=T-TXO`6bdmkLad>RWGKmsyJZhzjRiSI;NEzOUWHu}mv6V)4^!Dr>}tpI
+z9qVq7E^5j*5RQ7A^1n~-%bW6_p!bBPe4rFlALuAjngAxg8iB_sP>p~_fjba*lmfRQ
+z&`f~^P5J+91N#>n*egjEuwUb?UXF~YO^Q!J0M$ux4+1R|NJU^P0_IwU9g1Miq9vR8
+zhmc;Q#69MNGMYQmD^Pqx)W}Y=cA3qUKi@a1U%fFbLB;;_ljssK>Uv_-|6Btasn845
+zi8w_-hAc})JdAJ%<L4`K3Lx%noc}CX7CVnW1VYfwUway#n;o|0T-Zp}c}$oZ*-`BS
+zF~{u_b6gusdj@%N<5`CHT`{oPzN7oue!DqG!?9|JcO1HLsN=#15aw57Lr+wS9-a`M
+zi$;fM;=v^h=1?eHKoRpO;xh<8vQm)4J)uYFKzT6vl|T~Fvq<WH3t{17Zsze*LbZ^E
+z$H%WQ<j{09as@TAjlW+HrCP8jUpQHiB75cbJStrfZsp1g4q9<gFF<pEaHUf&1pjvA
+z2#JLCh&ezTlX(b`&L@l=w$nU3$ynh$XKT}3;Vl2L?JQrCsUFwXN5`-IzuHa?NaT5O
+z;TWNnIc-mdXMYJT2Q_R!4H(wbgW<)9fyr`|){1S4QPQeLYZ#QMQ;|g|isE|Mf9@Q`
+z8c?ZsP#1wM9HevbKUq@K!UHjM#*6Q@BB91m*IQ{gw19afDHzSd%MqQ#3qZKYq#8Ys
+z=hK#Edk@)Z%PV<XHV&@Qmi`+rps?43c_yQgsB~%O3T$=F$;K0oD9MdJNljvZg6SLv
+zb?nFv=?!NBm6hfE7l1?dV(gv{@hMnekdl{;K6dc~5R?&Dtv)w?Et%YDU5TZnAwL!f
+zmh*>D4l@X$r%pn2$qpB)!u=8hJ3JJ4KYl9+t2Yc{e=GkIfb9Z90TB$R_!SKPyocEC
+z{2QYR)V{*}xp1!T(9;M4NtO5Y41y8h=U`3>0Y;FYp%B@=#5oE}*1@EKMM0*JrrLBI
+zKJ#>tF$zqHEmv3?=L!b|*L8bgMQ^<6ay6}a@5`6tAVd+q<8w?Woem?nx#F!UMO*ym
+z+;7BC<K?IarCp<vi?;gDVf;>k#k_g1`s;bwQF-1N_2(#_+Foo*amNzc8)&=<Ti&}-
+z{nivahqEYtTEq%(iBjxJ0;zo30>(zHKi$OTvkS1|NGd95ylHv#ETMQU2E%2do+yr{
+zI~wyZS7r8jd>o>@Z#VCCKj}A*@c6hA)GfECE-wa_G4=DUDL~Ih4h*V-y04u#CVDj-
+z(xxMq6U}qKkrLoD5)CUF)iTpr)Uyub+5#s5T+bYQ!juAq80b2+X`m)B9ad$C*y7I2
+zo9k&eXnrNF4NG0#w^_#k)`FdD(%dhVdRjkD%01^hyN<F<G309_4j3iHiVSWAS0Mn^
+zfwhapGO3o;J*hMX=D!RfC1C?8))uVfJ+O`OKTIQr1UDw5p7^(doWusLGR61Az-v@w
+z$1W0XyRqu`Le=DZ$@&@OyXi%TaucJT^m1&Xzs&}=rp7bp&5t@3u!HdJPI!9nFLDY>
+zswa&FjtI8ZZv&z>+unzb<oHr{XtZN^<IVH2@&vy|Z=m*FO1UlDZXPxs!LuI&Be7an
+z3o$_8x|Jswa)@6E)M#394mRE_sXvWRDCbw9UBI1oVsYT|ID$zOgr(Io&m|PMFic(t
+z1p8A@KvSH`QYzWGI23^+s1A;eES2cf7v!z@27rWSFiPLVjS$908B5(#g%mhQe6vCc
+zk?Jvk>+qnxklxYRCL|eF0HQjwTuHuUA~hM<Nr6l#9d^=AJE_J>3QxLM@`(Q7k02&|
+zEq%U1J#{ZW%{ijet`k8j$*)8(6l&}F8(4wPl+rA^94aoUd#C}E%wB90SsEX#X=8<`
+z8l~vbatDgu11JLPGgLk3^C)zJ3emJ2BY@-11Gs)PK$?HWk<-LnX9K+K?*K9ZP|yTY
+z8kiZSCYS(*V9U?NMY57Jv}SnF{DXXCWg5<R-Z~bL6AM|p3pLxEZe7I=OExcO63fJ{
+zg97cOr-vFK>@{F?A3MdC$=b(Ly<gBp&j-DKJbLKp{uW#~iX&7|;}9TcF3bYBS%TKh
+z2Zc_tTf<?(_v=^WJEMPNUie{oPaQpo+Z&xWo4f-fyltpC1>gi)!hdAc^x|@eLGNyM
+z@M!7a(N4JA_)5>H;{e*{?~6W*Z}NFLOIGu)`1gT8G_8_f2IbWP7h=1;Zzq=UNB6N(
+z?iEeJmawFI#4{jUFQpcTB84Wlj8AVJMLr@ks4^G?MtP7Kf-2--F6hcS%h_dEBUHkD
+z$lJx%D&9d@vko0Scyzz-oV(=}P$T#BPCBmAdM?S=w=Rjb8}ss@DLEtAwZ3!pmquhv
+zmwO?VFp~X4{JU7G0Shwz?1c}Kj1h(OpAM%l7@aOqfgX$-CVs)*MR8;HYZg`wLy1;X
+z2e3odnNivwX~#7SF(;NCzJW{L9(a5DVfY6{J*?skv_yS^af|Hp4?%0kd|4oa(O<{7
+zDc4hZ{hJ_3^&lI^#^?^C7;<a{#f%H$yHMuk;saRIrvmfZs2LU7h)^1N4KN*9Q{c=m
+zVT|b?I-L{M;Jj>NX=_O#h~rK(K9i;RiWGI~d2B4$N}Pk$Q=mrU{toL%E6M#b+-nWc
+zI7>x)O*DK^!9JmTQU&4l6%Nm91vsX|KLSG7sj{#G^O!iDFH~BZy=V`M8?eXYjsHdU
+zL19Mp_LCv;pk-|e@(18&6XaF63@ga*$i`k4{}pD%AirJgBczid6oU6f+}IFm+g^vt
+zwY_Gr&)ur1mx#|d0_D)R+oNd#z7lK|(&tbnbIu|{aVcWVIVA|<IFJ=ZH(Hx>NR`n=
+zg1AxJoRcmhD4Ji29Ow&O#8Lf1uHa`2*x}qG+HNOS=eQfy*DB6S?uPq9g;HeoeIHC^
+zw80tff}R>)fd~I@@E#;6e+q)%+9l_Igms+gHj>GO9Zh5s^^o>Cg{B!g#0e4EO(K%7
+z#=LtF<zSb>{BoICVh@`i;#e69*Q11#{1823O-R5k2(1IN3TZlHt<}%u_9Wc)2a#zh
+zuN!bOQf$UlvM+K^ZIy3=dIH@gS@`+aVjzv%GM3*#*)NYD^7hA%T5=W#Q=?Y{TWIKW
+zazHmT<8h&<tMI_O0=Z#E6}z$l{$twq*HaR+9<ir(u6rGcgULnlbUt;OFlb~4`6{47
+znqEe51nM?R`+ql{#t#8dhXmMIlmQw~1Kmigj7;LyM8f{$0$9(IqSIg{X}C+IB}Y<W
+zC5bq~88{Ugaq>5Ng^dIu7j{z4o3&k$ZtvSw1N}a~tA4ioC3vja_-z7Pq8i}$=BLB>
+zDT!8(!tdMX<0t4uw;Poz?Zqxhbbx~{Gsmvgr0rGUN+<;rx90`Hi^cNx+2XCl7s2)f
+zIb~GhSl3cx9kxmq>tk6-NdVhu<3Xw*?mze9O*h(jSW^IbYhFlF)3nYcU3{T32b3)0
+zL^uy-7lDC((vChB6Lu!JC^2CJ5hj^=%mGn#7D5)+W7um-=uHyei9$4Oi#dBHl_O`w
+z0)kgL46hT@g#{0rYBcYZl%S!RkUbcr4%OXsmIi1vwT#pK5$9JxP=+h$AV5^X3aX%=
+zM4~|W?nDK!`B4?Xwe&(<U86y5NPv<E)X#=NWhFofK)|)2q>mhktaY?#^B!a#MrpQy
+zW3l@;s}&sU>|xpa57dgf|7E_j|I2(?qt%o$_y=GsrZBQlFTrl5(jh(l1y-C8<y(kB
+z5D0Y?lu%b7xLPl{SG=~=L)IarJ-Zm0u<9P3RFZiEz+W&G$b1r_iSH7V4Hlac9dl5`
+zAr5-K2dR&VDxstjVoYf|OZY^`mhm@elNRWhb@TWyt*}{_$A6Lt&gRb~f^+#lC4w{g
+zV~OA_{zxKN!0QshMSPVVe0c@h!YlE0UVG+%tfL}i9z}$<XZCPQgk0LVSc=Xx*DmI>
+zFblDw#UWoZO?J`r`84rG(=_O(Ds=5a$b^tEwJjEBFarFS@V<fey?qgF&cU-~8qQ_E
+zMWn}4DS8pfGfLqe@D$bosGBAhG7XUH3jAIY<*;h_0TmmBnsZBdC4$(tyo1^{h}F8O
+zjtTHbU~UM-=T_Pve}_DfBsfs=QJ9d$It@b&vt~K+(P9U_dRSACr;1p6*<rp5$&i3p
+zgC&sg9v_W{JAp=70*$xG&S9fb&d;1BG;$MYTz>%?-vt`w{4Hb?Sg2#{n&XK8dtWT3
+z+QR>~7IWokFyjuJ43@iDEtm~0Lz6Lm;{J#@sS*i7VaA^fL7=5k1nC(>&fj-o-7;!-
+z_6y{I?9MckJ+<f;u{GOtZZ2vPyR&pP1!ia|BsOTpNWaIgWF`|7n7tN*WTfb0=a!12
+zBki4AGUE;J+zQB}cWy6$6R_bxzXI!98@gctgwKi4sQ<s%%suxydgp(=nJZ8RZk5Ko
+zmQ2Eo&Rmb$#l^0ARtsq?|L<<&F2kWEQT1p`e7I3^c*5)HA@+2gd^d^2^Y(NTYaiMp
+zr5#<{3jC8-kWu`y)rC;E5I_N1?Dxw2ULgR6_j_?}d^A+r@U@|q{R61m2&w=r_JWi7
+zq<;vNHiK=bU;gTwaebPg3eaMoIEB+j8i`%(P22m#e}^t@6x)FR(*}&A8A78M%C}gc
+z2E)4u@GJBXd&uehZU9b@He=Kt@-QjR+eEf&D6ngQa&SQndkDCwhC)!yl1J5WC62Sv
+zmKdF|89uQ%yrVW;=ijG6dSYUMn~#J+`Q%7TcmC2MA<pw$fX4~K;}|_C6v^ZbSi~e+
+ziV2J8CoJ4#YI!FvHcfq`McQp#Zo^irrD~;Ey!@U<E!Hn1D<~|cPyg&?2M+XGtEUlS
+zvouaJ18O&JlQ`>eKN*YP5ez>|7>VwsP(<M$lW4bj8^=|J?Hil3Bh07`KCF)S?tPu0
+z6>c62pAuX|R`nWvZg${SA%QRdIou?Nr?SLeJ&ojV-m9m!V6UDQ8UlIfsot2+^=2Os
+zi(Xlv4PIUUxl#C6ZE(W6<Vadob(_(&2m(1WKIH2p*A95Rp``rg8RWM?1VtwSP?@gq
+zpCEGx#zpEkJ&zRjComO2o~P_w43XWY#nN%>P$H_tin5LEm|A^)Wi72?tJ|>B>Pp}U
+zH>=+4Ab?EbF+xVz-(ULxjc@O%B5g(`mzheq)t$wn9={n<jbmy&e|$8E#qw(Cdf&Pk
+zM?tofp5txP(Ai{{OE>)80on_I$IO)gfpHdh8>QViig!Jy%NEEois{(h5=Tp5lEV#(
+z<JFgON)*3ILOq82Q#;_&#}1Qi;ESXMWFL4RKgV}T|G+!b`=WX9Jbssr6^6;7gk`gI
+z2seNXI^WfH)8W}cU%UDq%m{Qgrurn={)d+GsqnWa&Y*>eu&v$=k8YUy$zB7)!x`U~
+z(IsS&pz}>`%j`J}eGuOP^9Df1d8pjoP8bT7@?F`YacJ`Ov`K{O(&xhS*I6+rpsBBc
+z>RwaN!=#vb3VjC}@H|YQ&>Ad@M8e{^7RzyK?No-o9&La{f5D>bDHH_3j~XRMTvhQ9
+z?(3*^INyyp%K26R7A9FUIuRyW?C0_s!)VPxyK~<+<eM-u%LCjsoPhI-=|R31eSuX#
+zAAcC;0=mu6Ixd#LsvC#%Ev%Y)1IRjRD3-d!VF#>#EA?ORgoKVy+3J}0?darr%cB>~
+zyD{o6E9a+4feW!t-+uMOtrHr*xKW*KEOcNi&lB|GM{UaaIPe?s#=~B-@r!Rq$2Wel
+zJURyX;C9s^&Q{<~#N7Rb16|<))J`KrZ+QiE87;f;#3|hej|ff3{;sSHRKn%y84_oG
+ztc9?G&xv}q*aG@7eL>z2k{b&7Jv~j?IxyC)ZR|IGZV&eoIag^to1_~rqeSEHXfbk)
+znz_}WWAr#Ma8={kYt%7~zxxEAQuLC5`D+U!$_EP1#S7JdBc8Ib3ZSZIQB_OK!bp9Q
+zd0@+80zBOkoaF0tH{T6Pgg@U%_g%p#Z^&B%JmX@)TRn@BM2Z+)>Kh-20d$bo^km0g
+zC*yp`4g3xIPV4|6-{)cjlg3w+HuLy@P&x=Y9>+qUkmwGrNXDK8jOJoRA+Ao|sN`>y
+z#nG2~h&MGiBE#`350)gD0aN&LK)}%waeh_sUn%Vs$2_oe#Si4()M_R*0ZDVyx(~}?
+zBFwtE99XtsFKf6&P28iW7_Oa${4^X^$vg&kKb|ZQYp1({g}AKli9mE?!TKz%GX1|n
+zrDDPQDjY%+D{Ni@iE-Wn^Dg8YUSJ-jtQNF?uyFh#kyNa=(D(>W&4`sNdSyo+B>3>B
+zvg6FC&&Dha+#S6mG1&YMz@9XS82&cYX_oRD`EZsAU|K9QP!=vJL)xoW8tvLyX~|O%
+zL~39uQlCbuWro|62TPnV#9bsJ=3DFh0Dlh$-$FK4JIEMkhq2VQDF-@T{Tx;c(U}^T
+zv7O4(;7x|}io$_n`^qGmPPVVGUdydlm3RrdYrP($v=1FZzht4!kXK-X3J`IWNS)Y`
+zOrO9P+r}?~jpMVl!LQDbeu1Jhw80_xU*RW0hYP@4ys=>j$B*eO%ywEde>FUxS|_E1
+zub0;}aP3u)KMyY${SjcSKSIZf^xqP_1x1ZVTtEBS&wfwj$o+Dwe8ZNMA~L1@&0s{x
+z*NL!O<@_y<Lb`F~Z^GGBw5zE%8+N}Dp(Q+Bj24bF8I?G*DVrHD19k85-xCBn2+@aT
+zvbHVF$z;DMz=5_iTU$OwZo{BwdkaP5c$)jwG6&t`n&#_Rlh$tK&MxrnUi%r2)NFO&
+zIL~|K0B^Jmp;Vv}Z<Gs=tbP)E#C8&NIEX7dt<rpzT8pI}^d)Ui0ivN>QO=P(VY1pM
+z@;xu|<*@zk-!zv}H7__IJ{OOl;@R4qHU!vl&kIS>42sF77(m<7Jf6rEPu=p22o(Ab
+z)wjk&ksljBpm?^wDt9-0!~n~A1V?;ZP9j9VWiU8p-B<zHD9nyur2UTKr>q-q$m1JJ
+zreqt1-CL64Nn0*vqNoLnK)*gLSy#T07;RXsVN~)U<O*#r&<R%(Q0ss%DT%Zna7&4=
+zP^P0x@p7!{!r5pupNx}%klXuV$uy(aFm>p)E!0tKOK`ky5L4b6?MnQR614$4lepmg
+zQa%7%cZY<XeTki}<Uhi+k8O3#Zp44$j=yAnWIPh#GY*TDyEXGRH3J__>xDrF{tk5|
+z{BA1MkqWT*1q38w9xo}uyT6fGIZ6FVe{vrTj1Kib$kBi{#?A!b^V$dzMpcAD(H1d`
+zcaRyfXDvid<9vmNmO2rR5?}GZf+<3w_GF54V6hER(nxZz6l$`#hLvAKVt0_GQ8g`3
+zP_5Ak`Rf+L34dJ)G?*}73=~o24?xclE=@)>whDd1ULS=qIAJtQfzj}sB}{^R8xG8c
+z1Y&w|2@`oysLxDE2vwLRrTDYtMV8E)333}Y9M3@+PKed)(IX1|ha(L971Fu8;QOGC
+z5Aut_Z6Wwp{T#G|PZ_8OW$tAD(^XJN-OZl>exVl2L)3g4aP=QIeaXLq>q>JczM8%y
+z7c6)4E`;5`X~XK|IWc*<oBt1DaA*c6-^H+{@!E_iAw!I!OlSjl?FC=e(4~Fe<N6yk
+zpcdv=^R;D-4WFXqr_pI!OB|TNFLu9r#QmxgPa&?B@oOAw`*9ksajvAkZxmhp+BpDi
+zRFnb|F#{NZ{NIGpN7f%Bh~z!x)Hgz}H#U+~>Ujg%^XHS0jE)QPsh~p-d7D6O>v{2f
+z^!C7O2DshhKbePfI7VX_<iL?hRLnY~bG8;ja71(6uTCJ*GP&ss5=v_>+PXP_Y|5fZ
+zQx>>iEp+$}ul)!@1}9zBgSa-L7%K*V&`i00XE~Y<moMU1{uf~(vQfq*cK9)cNQ$v-
+zIY8B}W=Y1<q}A9qyCsQE;(r$82hl=wSS`k&aOwNybE8Hqta$0*HX4%mVOD@<a}od7
+z(}{(`ws(-VJzh>aDn@5Iya(&u_&rR%Iw0nMl)^PEIN}lDdpbn>$>PR?0zlk_>}xLK
+zCG>SU`TZ1H;GB_3Rl}S5n4ajKAWTvG%fDbx_f@Pk{exRe)0-FPO;IoLzMWs;ftw$M
+z2RKHqo9_3-lh|(9sGM*;p&6*=yeVk+@FWB!hvW|?z9%s{p|!!;Fyj@l+YWLoGBb8k
+zFbhFp3L{ffg#vzF4Ue8_LAK9$FljY&pf^_gI@G`A9z1f^NWWFvorHAt&o#z^q+wHx
+zFbM7fG}h<EsrM)xQC~!jp~}ii)>WDNrz2k?2drOPkOhJfsL#fI2OrbuCy|#$`ZyH%
+z%JLxIA{Vlxu=l+t9Q%(~@?9SR7#jUPV3TSa1Ds)}3R|@TTUcv)^e1h3T{65m<5}b8
+z?a==d8$s~}G&|!b7^36KIsN`?hz+716FWE__(Z*c7~5ea!*_1Ygxmo`_F;P|z(0hk
+z9}F%Wn23~nfJRGf2km8%Uz#?9LbOw7YaJzYQ<Ir73)xm{4WD4tKSfCTaR-XKc`JgL
+zu=9*6oEr9mDm$fYICS=HNMdmN@J+$QKJ&XU9r*e-A_m<;bR~hV(2=nM?JSPmY`v&|
+zw<9{cf48EJD>E|=2z;W`p!FZpx^Hehn{v<LJQQ)J8#93!_TU#}Zgp;1FcWbYS@J^E
+z>N}_YJmEJ_hFyrWk<xv6&e@`<wlNbXVLZ>_4%sC$8{?0#j`pINO>`x^P{dLrXP}S8
+zQzCzhCq??J(CSVg!|;O|P|`u^F_3D69_SoH-(EJuMDz8UOl>epC5Q#_tF%F<nuDMc
+zzl<U}iZU^QnA`6F5l~_*lXrF$cqpnEmw~%mDi8wV!YM@T|NIPNER{!SR`b$L?N}LO
+zi3X25TCux%7)ALM6cSg;Cnf{zze!u$xQW7a8#@3zNC41-*tBJj5!p~VPFtz~r2Q9t
+zWAlp6Es(ZS|K9L!?<jL5IVkxWT&fJi3+{p(fX4zTFn+|R6LL_|+7+J)7h!r(##uO!
+zbA{GEq-}&od66iQhL!8EA81JX6vx$Nj6_@ug0(gIDc16yACD4bqfnqRkgqDy>40e6
+zxJtl=eUuZx{EGSk3B{Kk<SX=y4Ga^tRE&xGx&H%pUzPCNnLzXE1)kco(L3jPYTN!c
+z|BbS=Xdyppk9jS>gi0sI#W(ufJc{lamR^v>C8XnDO)CFI8XrS?f66Gme<xL5-L^B&
+zdd;<7v&2h`z<bhW!v2ifT+U8kD{g74Q1SyZT&3aF+^WI@!!{AYfdT5PlUJkqQC<-c
+zov#rzezmy6PkD_h;@S2GRn9N6Kd5e=f)ALisvy@eZM8*ag}aF{tBbMwjN6rtO{+dY
+zcL96|gHuGQ^$l#wjLtENOlsrhqNP{TQ(YWS*UpWLUaXyS<Ffs8=^K68xk;O@hbJ01
+z7<UB3{rn*kom~K#@EZDO%!;NLcaVq{c=wXyKr1%lC-S$jeQjxq{LMp9n~wlB@}>L`
+z$7Z!vhb8C><Ir?3CZ5pN(hs#&CvaQV2RJ<omwbO0Qqyfup?&0;?>V{;nIMTh4434b
+zfU^&NUFgZ(dPV1!iVvFKcDImJqZt$h6@bkluy`Lih6|qus5#^40&iKJ&TvA-e^|Rq
+zmf)`D<Lzi0<P+|&Bg;pJ^f=%k;qrTuXHgeAo%f{Wi9jd)v~p{7hPFb%F9x~deL`6q
+z?R{hU-muax{8qiaQF|?*H8ylg>OFvYJ%9Bi$W(_5B}z}&2IPtp*p@=4plew5v910O
+zaD`rD!-tY+L@lTt!dbl0xzB41RO`byaRb=n_;&zXTssF1ivP?HpJ{<0U8+3~OadYv
+z?WA*V16|f=ASR;(-uWJJkKo($2C{uF!aFBX{GhF@j7QNCn{UDh{fB?IhS2uK0Gb$Z
+z9&rj86G$e0vH`Ma0vuX#HHkQGpX}YcS_iV$;sL9TbW%j>-v=1~8ExkaAf1H8Ln+;J
+znBsml1&Wo|EbbxIlvV_Y3GiF#Fb26{6tIRf+9uht@k(E<ykQ0|==Cd@8Zo)!;zIfV
+zVeeg_qpHro|C1XG5SS4IMu;*<&?p3>paKCCE`fkSgM>g7fj|-<1c=EDw}J!*lrW~H
+zEw;2?imh#FYn8SrNWCNkxhQHtS`#4{6zz#aH6l%dM)H21z0XM|sBM4m|G(DzU+euR
+z>zVJ~`|Rtp@6Wzv=67jb!4`4mp)M>^PP$>OXh_Ke+-DreEAfGwY!^dY#SJl-I73_&
+zTCQ-?!~BxAg!Qk3#tkZ4FPVWKoKt@j*{c{S!ylJk|1dvSwWm$&OasYAC%sgA1*v;V
+zO+wUe2rjEQ&6;b6{U^$@h$cMWv^;>(UAtvHgzRNz5KF7#r5z!{B9`WwM&uOf<V<FM
+z7^}eE&T6Y#pi|<3wVnM3ekEUI&+1Pp3;D*cr0X-wPfD$i^o<ssl3Zn$-Xa#w`-5!#
+zyrV6Vg3qp`Gk+zSxfSQ+<m74D1b4dGm%^<2RR6mbUv?@Tw#R>vp~B)r3I6a$)gWQK
+zgHD;VP;$|V9EIkXh3a*E2Zm2vf6>G{?{l(ukFu3%7IHSg+{giyp^eJZ)?uB@-fWyv
+znk;{KCnng81?0Rcou=<%q_?{D7L}~}6C`V(N>f(5kVjij!+M+ao--)og<cTlT6@_A
+zll(B#Nj9oTFLm)(t*x)fQu~No)Vli(2=;Q3?yJ5kQ!Q_srA#fevVJAs?IuB%hfN3b
+z0Pbxx*NT0s?wQ+Y#$^Z1l$Nq7EmPA?Ikd)riH@Ot12vi4(8@JpscWbeVGXSz{!LOL
+z+B7A>8fnX{FPY3zQsZW?U)4MuMsf$nW$d-WeW-8Mc@ZQ{ZL#$gE;-lx_tu?{<J!EF
+z_C3qq4yEoCp!Ir4qy$vDg3$)|h<S4T6V{-c?PH>s<$p-UNA9acdpTQu-=k8zATG?m
+z$bk-QlxXL+jT!AWen5_9WwkC}V~%Y%ybYx|Q^_g!q=?7K{)e{UOT5e}k?3N>|Ik*{
+zua@vL=wP}Ts*JW-y7M&>3Gu+JN6Cz&^#zr_pJJ4i-)UyqliN`-EG>H=Zv8sVq^taL
+zk~d0%bEcbr5-*0DzXym62N>7ExZeJWGO36ZJ8ZQmlaKPPk}Kw9c#4PKotdUr%-aUL
+zGT%|HTJQB2nj>JK+{cBiWc^N}kj%J(fYw>Xknxmk({``FsBA|29}-K_8fBWDVOFMj
+zrHYW9MVEL?ZL~e+VT53hbsJpV(3;v_n7RZPCNw1ylqzOu+6z;c?<!1PFDXo2eH{za
+zJtRyD6XU#OsX;GoCo34|nNQN7Tq2L@>|c>ae>09s;(8xvGA?LU6|HPyTDsoI&x&2p
+z4(>>aZKL-x^9R-VhLk1Tyjom}lw}(s>1rkeRPN~GMK#q4-Qpk4L_`jw$7eE2-X;PT
+zCWfEQF#j&iHg_#%c|Ta+s&>@8H^cmwd=DH|GX9`Gj`r@a9}>LU56x3^iB$IK=zlhd
+zdxVc($R9I@EC2k%-rRIGlc6b&{CftybuTmOo0#7gb<azzTp?|Zb9WWv8y<G)B*xvu
+zSXwdX?sDIOP~VakUO>vDl1Ail_HG}NUpg{2>hjsS``Dl=Prr@FRyoSDTDeS0uG<SC
+zE{R_`zrPHgQwjo|{o!vuLh!+*P;H31itf&oj*D(|rEByVqFvmDrP8_GWsECB)wT;>
+zE*&F~6ehHhi8ad$*m=j<|ELi5jbBLoVntjaOzu~n5;cQKvpyjZ#bIaeISln*#BNwa
+z;up*7aL;nmJ1h?NrxIO-2pR!O$mX;wS~rb{Cby~^2C$CBLDl%4ShM0urr$CJx!275
+zG1-jRu`POfL5)GTng=y|t|hN!Bg|EUn)UtBn>j8NvN@x3>!vg)U3))!PMa4hee2K0
+z(B`#E;v|yOBTLIf)QpEwrOz8MOQbTTFNdRIup3LZxXqKSG+O=c@%=JIRPi)l{gI9)
+zrRpS+sXn-|8K2;?;rlYw`Cw0ah{?|9-klb9wDeI2{>e`EK^09+Wivy3UpZFvX3Nv_
+zVm{Ses|OPGyO{tU4LF~BKdgqkcHSy|qJa<gh6K%J7t3|eON>ofJ);-belTiNrX4N!
+zvO=(2ywK4F^JkTTTp%a;$6g{89o|^f_WT=FtegGHXaA$Z6V5;LaZBQ<<+pK(;`8Ux
+z@UF%{f0?k3_qDW-kBUw^(0;#@cxuIH%fFZ9Bd;4ZtmwxWvTXtxWL;Z);DrBW2~3CL
+zSD8cke@qyxEf4xK@vG%mB1dc6GowOVcUph;tLT*~PuQnFyYx|ES?SAXB+^Y>0dk5p
+z@#n>C(EC>Tyqxk0+2vDt;8(d|d8t^E_`Y-FmpJpE(m7Nwa_O)y6W=es*}An##mwdk
+zQYyvgOS$5y;Y7uaI$=0?S#q^wa)Nl`snyBx>!Nhf|Abigzdq=#L6wOWYeo=wv|km#
+z(#JPON=~iWxFNYznfO(4PCQqf#vOW!kGjy;=Q9q$*mk%}JIrWzsOpAxlK6IUFZiXr
+zsvjf+7%NA#kq%orMiu1B-u_3FZ+?8ULTjXnm6NjS6w!k}zz2K(=2W=^oHIw<*V&y~
+z*L}p4NN<0{phM`RuB6)2hV<lH_@>JO^?LjGmAt)cjz49KR7Y3f+W~b1aN3~H5fJ(>
+z_`c*UYuiThfxZA&;0La5Gw6x|^F~&`&Tc$L@ZK<<sF<_y#J%2!#btLw%}+ltKBU!{
+z8ThRP_AWgco6mo!nv(nK$HU_G_KA)^)7k;ReL1u$@-9MXSI+kO_JuhA5FQ)&T;_qT
+zn>%3^$;%ARUxmjO^ZFPy*ggBO?r>ykA^WP--CWdcYoLHESDJHgl$k*k?D2oO-0vA!
+zAe|mvV^4E<`?mzX1tO5usFQf(n6Jq6>x-kXh_mRc*(w`Tc4zCP5mOv1x;kG7X&mpm
+zl2vgwaa8!~LIyS5`HdAw%~-RLalU%;Pd^zYTa7xLJQ9(u$ec~{VF_yrSKxcQ$sUhn
+zho3n%BH5v>BU0Q*ZM{*<;3Qt*uhAm2uB#_-Y!neOrX08`i!sXXa3t3BE#Fw-nQSQs
+zRG=7bFp*kurF<GtVSaHNje$HpJNICxBS%<;u|6<ztRfETU6z!CooZ`oln*%Qg`2QD
+zY#M8)i+1YflLL9ghsel=mlz!p${TaMX!aqHA-$?(ZppE|>xdV(L90<U_wsJn%d-c|
+za!*Rvt4{eo^9X_3rCN_ediqRmXp{)ZI5Gu+iG4gS_)-CxO-D0&c_2z+V}8<=pb`&c
+zl@*4F@YcUJmL&jq$x%E1N=ND1Seewu$#x;J4l`{|($>gS*y3av+%1bT$|gG!k19^y
+zZ7Jd8WQ&tm$tO7ZyIbMp$&DwR8`5xfFidgN`j~DW<glAsta5IMSDzI}E8!@2A>$?*
+zL(VqJ3yV?tAyzCTGo?TDuWhy}2c4IiJ)4tcB*&&?=Y~^QXi9NOu6l-Z-<migBN1CW
+zf3Oc6dU)zoxsN=i&24wv?Z&71UjGC?Wl^`bCvx&P6M3bT$o;nv8@V?$=U`{6xTw^p
+zn;*-C5^CvS(!tIuaR()Fasqa^@EJ~1Zkz4+m%b~T$UIj`x+v4$k?HBI;K-grwbr1H
+zrVg25%GDxSLmQ`=0a0*pEca|%St;49%ZlEG7$~1%9uP}`W2%Lr)~m|YV2*_K>{vuH
+z@~vAI)6M5_=G!0pjcRL`L)CipGJ7+fuv(8EFR7uUToe&>bmn;b99hO$QsOB8<`F~<
+zS%FxqrRg%mT(1mV9G_V}&@3l2>{SpMaG8H+=LMYkIMa+F6p`SZkh`tylPc8&f?2hd
+zOs<HVk)M#CY&PMkzZs$CTD`S9-2YV|wd`RzXp`9NxjnONh1=ge%@R7)rJKL`8%emc
+zxwZ6aUJELneY|W!-N6afhS9a_fe9zOmgLnoZ<>7y(KZ*%H_v91z#GDUwve^ePSPXu
+zuYuFbo|Hg1E6dB(Jt(<KvT!hg3p>tbnvaS*Hl8uHiCQ>UrZ%S;oN}>);g;Q1P1W8j
+z%$F$(`CViw?uET1;(!^>+E}Gpk4E@E_!vIOO7lgv_`+^L1XyeOjTrW_$VR+3nKFhd
+z4Ocp5e^L37vxBBS2tJI!Gs>l}Jo#6$d^0idSD6EKHv5Rry6cdZ;gGdHQ=SkOu2xtO
+zadZ@We5;k9ZQ;@gv53{UazWxP5>hc60Q?ul+tyBts}bj@NH&fSiwp6L_pJ$I0cW&%
+zFJccww%!3l%Lg?ur~Xvlb4AW@d3yf&fFqsNo3Ql!#@1dZr4`ja_|kAn@73FUkhRN$
+z2HTztGY6&5EsMa^5L;9;g_Ws`-d^TJ{n5O;&3<4UcX?lz*j>f5AMYlgPO50`wD>Tw
+z+$fA~9Pc2Oo&3n2D3qNo_dVO(n_XYD>VT?lj6Ni!?q&n!O2;TLoDgEI5MsU=0{6K(
+z;(T>X>&?HmIWqsUM>^*A_-B^gkDxC$Y*eV)Dt3pz(~fdaBZr=5_(u$CW@8!eJ#(3S
+z!VKPQbe<(c)6KV7L8AMo*mui!&1~q>NoIMM`8%<ra|cPv|9WOa|4u;@Rb7%f*kF!^
+zky(KundSpD8B+Ds@yo0I6Cx|jZn*84Y5pO=z8bSY4pL#k`@TBF#^DZT9&++2W?_jG
+z@|G<yhxxn6?(-eyLg}^iLXC*ml(<pt0X@#DXQ{W2I}ttp+e_D0(^_&uf4!uGi86hH
+z;h#v@-3j|<-&Y~t%VwC9Bx>qxN^8oQKn%+b(bzd^V#PVb9Atg<hIQf12P6afS(cRJ
+z$oc}05}KczoxRoO%@RbVEqOy+V&FZi`<^h~iZFddpEq1s6EXiq>)EzSM3c&6*bU}C
+z*j9ib*!co8Kv@7!9cYw@IR6s4FAXTyp6?Kb1Q@OgL-6rl@lm3Nyj9Y!B&VL4S^^rr
+z6RuC<IRKsL-j)b+r@7n(e<j&rB-^&D<&e_gwAqVg#Xn2we6c%?34tf<G)g5Qf#z?C
+z36e@PrafV*+OoI8-&uzmD~e7qw6E;NICcOZ_q<9g)6kzonsU~b1GkR0y#l)U=uIY+
+zl*EWg5&bb%`I$KMPjDqhxGa;0wMkTBM3iOX)h5x25z&^(d~Fhw7!hNcOw}gt#0a-#
+zlB7*y6C+|RlXz`1JTYRpWztuhj7p3cWtnu*Cdr7{Et4iz&xzsq#E9{h$w%5GH8CR9
+zGI>Xvq$NhAStb=?VvE&u>OJfgOpH)6PZGXeI|)yW2)CSkUz<1*BOI2=8f}u07?EI^
+z<ZF{*i4nsrlbK>-2gHOzx36s83xCLeXwX}}iZEWaN<5&hj;dkAd8>IXE++C0RTjNZ
+zLwh@DXHgYpAipz}m|9XcAtqnqs+7a?IkEMqQZ5uFLyOk3heSr2ADV8iLD%}ic68=z
+z$S+!7ka3f_S1DyN#(WNC*+aWfikDNAV;xqynS{=_e|*_PXXP_~4^f{*lp;E}(#eof
+zLh6aG^@R*{=Do^$*$r=|E9ERvrYPlHQI16E+aK4)AKCanJjBD6`$$jc<Pxqr_MT^H
+zBZme@<cf!+8s<Dg>niVU)8TOj)3^YGrEgWoK8LIIhf5Y8bU)C4hWQ7vOP6>?4M5oN
+z_63caeLk2CyG>|y!|!{mHK+%+R-Y3HIe7JXM>F2pg2L}yeI5@x+D05xB^$ZdlwM|Y
+zTVR1Z=x=Yc`r8}nZ~rd+?U$X}mrryGI3Hl2i_A1P;w^7PU2cwT^T!<dXV}RSO<QnW
+zf*d64f<x8-VH#a|CQk-RFR6rGyudT%xPN>!mmgPisY@7p`B}s?rN3s*I^`q_moyvJ
+zA^pS)PTy#<Z}W{q%k$)|la%9|mVD%oQl0MRv_A2T72({7GrrG|lG9&pQd|7;LpLq?
+z*Csxt2S%Eod@S3MoO`9g&D$82>WNKUd(!Evkir$pUNyEsZ9O9eBa+6_x#1Y*69dsq
+zDP$j;xhm+>Zaxh?%<H{Vr{+hnRTK*onMryN*_(on$W%h^R><dFBMwrihkjWt>Q$$T
+zfaiX$`5%;0MS3T&$@|ENl)9q4lC>Xo^$zBsNxnhqxSO9t8TfpLp?$l<;l8zXAw?rw
+zCpcQ!K0)*!{FK%;aJ_%}@y(t6k!sOv)A%cgSnFRUY0>fF*bK1Zm`u>6yw%hqx7>)V
+zb2VLcTbAi%n4#rlOQg+kk*Sg+Es4#=NzUE<rkR&9Jjg<Z?2ThndZ_QKuHIhx-S3@d
+zUXVGXn7aszxcLr-Ca!HMdZRs9hI4vJRt<Snam+NoZlo+R5|B5pXEF-*eXNFijqSs|
+zgt!t<Kl3<ElRr7lUcT*Vjpa(#BwTMO$9>d2P<n*d>Pd)h?R8f1nb|24Q+qP9$3<st
+zrd{7r5X=1>jNTZ-F@Qtx%s^3<C#f(q{Amsj6G!>3HMrV3FWm6uIgHY>2F5Xnn)nUm
+zmc85pCRP_;y*X^$sIK15r2atX?h`k4E=&1pVq!D0DZUq-D%&XbkQr}053>DA_7bBK
+z`GZv^`uWwj5ZM+}#0Fh)=vRRyRu}!Wos~g3xQFKTlH@Ik`yVGStWu|G=rNtD(%z++
+z;iZ|5fVVAmgPgm=e3hZT=B}KxpWq11?|x67yobofL=yU?<hPyFqu)rX?;jVn83WD#
+zF0~JTYieKrUT|uoB{SC{7zt`=xWg(aGihm5R`N`b<R!y#xikI(a%ABwtxZMg)$GD7
+zRcvRcC?`97@-PO{PArsdOsCmq%UplwZYK%!UFhoVqSDPHVx*hZmC!P7l&L5>F>Tty
+z>9o~lWs+r6%gV&zpo*i->HdoJX$xhCtTi>~D)5aab{MFo(K4va9aKs4pfWp*{j<+Y
+z+}fCQUDy*+*!;>7rQi+!!9m;zN(p&cqFC%4dZPYL?0-w;eqyy|7IQ~ay02f;a9e#q
+zv{`(ZX3lMx4}iMkQJ2#r6WR0=7@)fZr%$%O_)k@Q)k)s$lvVZ8DRutvC#3bZW*{M+
+zMVaQmKBpS9g`sq<dT`OQ!6Rp?`(O%nMO!fD1%|(b91y7&BjQYx?L_)~8LsW|Cano)
+zu4vTg1J<6&G<Qn?mFCOZt$7HvW^UzwP(6>?oz&SqVnT3%aB%^UuF5oPYpW0o$~BU2
+z(TgBs=x65RRsZ4Ua^<6JKsT3aAM5{sm1*>el6*;gRf4=IrxVXj{XE>Zd6w(?lCMI!
+z$Bx-WoWG)}ii^^&GOw^=c}=^Yeeknh9-^hkLgX3e_BiuHm0ZW16fVhk@jBd>q>-(3
+zBY5)Wnu~AXr}N=Yi4cMxIuE+0Of1kf`5WqGjoC8hj6D~@V(toj%n02dsS3P5#cUiO
+zLen|H`AVg1Y8)cFvaaOEx$);699OadI#AK>*;6g(|J1JEPoROP{NqESk%jTxojfu&
+z<vjBkI=g0sPFCCH?P8U{l(S{tv%D1k>tFwx$q-HZe70Rt+GF!0W^=?Z%8X==VddSY
+zjHyc#0;AH+3K?AohVmYtq+yB~G>=Z^gjrG_wVk=I`8M_r8ZnYhe?qCJ?18XBDRphK
+z{okz6#lBrW?i;;^VVt4gPvdrZ=d-hT(u50-2bQcejL{|ikd8WQM#bj&!(;P&b?fqc
+z&Fji?VjbS;^*<wXwpi|&ME(!lM%1TB#-5F=jfyqr(QBGAmLvNr%Q9la&F+}o{TP9I
+z(uhf9-uh9o>q0%9YU0fsLtMWzjD~fd*?>{v9aD3*=5WpDzR?R+A~p`jWm)&S_z>4#
+z4yPFP*Q3`quLvCf9pf8$qjOCx1K8dJ#RJc4wbdu$x8v;|%AXOq##~A53iQ=hU(;4!
+z5j&H`j!ebd!YapRP*~=Rgmn)uk68SaCn^62JaKM(69)l<2fAT?o-?kOF(iaXVd4%!
+z&3Vq^s$qG~2Y6Q|Bf_mdd|8#}eCPGw$*t+0w9%~uzGiKn^NZI<-;B&`T{oWh=8EZB
+z{Hn}z4r%>f?B27idLp|l&ET2x<Gy`SC>&6DDS0pg=hPBq-HyQ*uM={0o^xMCr_rsr
+zT{Cd>&E(p;of3xzSbWYolgPCNQyY;$#0YKQRW1~~Qk-#>Si=fMN_nkEH)?o;oc}M#
+zBWV}2kOf|5_GHeXOFmnY-wjMbT21#MZ;8+jQj;3gh{fyFH7VVErcx@!JM5k3#f$;_
+z5)XO~iux@XB(W8mK~kg|N0;Q>6!&$|C<lMFpR$}&K;J;JJM8<QL4F9oEqUw%zrhAV
+zo~g{g<>Ev=jUSO|zCh$Nc}%8PgIrDZS&hhUmP(e(amiKcJnrT4oG7Ojm&cgq3wV<k
+zBbOZJa8yTKa;QWYj#N6IxOJ-YL1e*x=|)Cnv<$sWqdgYQzt*wf!9v6rk(me(9A;nf
+zD8Mr<Z07jgdvHS}ADMbvL5EEm<gHw@=O7fhPgx!-Eff1{6`!S|8JW}Q`MVwVOi?{b
+z<nA$lx#tD9tdm{a^~~nZp6gf{V{fs%Sw8X~MV&@|xFR(4<B<nZRiZjDvd+s>U?JY4
+zLl2Lv^K^L;p0*Z+Hr4nm?wviyT0oonR5~+nIfK{Ld=f5MT5c^yC?^$8CIT%}8PIb!
+zoZN2K^MDWXM0_g3p04H_Y?A+#)Gh9sY;V5g`4eiH?@U8&Oe`fgJl3Q_7>6l_Jt_M#
+zUNI=fW}Y*Ox>Ni&D$#3iib?lmUA=mxYrJZw#({G+-cqPAqax3liDxtGaJb(X*w9(|
+zw|&bnRXO*RBnW0S<T+;@$a7|$2hUM2E~4H~D7cz=VEt*@9Rn7vzaY>2I3Jc%HtXvz
+zQm4XRKj*yRb0XJRak^_*#fyldI0DF@ui0>pKPvGwXm~&>Vq7nmQfE=?vQFT$RM1{-
+z%+4u&TzrX&bJo8w|NRyn|BtXoY-YCL<`DMqN4rbVepO+&DbLxfk?(KNJfJ1XVx?C(
+z38{b%KnL@jm%~q~#guT1yV&hsPB7=3`wqd=*D561D^lgi!tC`IE|S(21v($Zrp<88
+zXvNrlxU3SF`^2TEb8Q6ot+^`q*29{>T{!I}md`n76U(06>rn5N+zpV6J-b(_Pgxav
+zk5J(1)k_H#A@G`D*I$s|;*ojI8HaIwcyAYB>Dd?(k;bDTRtqQ!hdknGHG;#Cmy<vj
+z@2^M#G3A#8)9w;}@i8}wqXa;1cB_#1Zr2h0jkUEvz26>GG?nte#zLZZvFks*iPBRA
+zx?2V}|Fh<kQ-{q#bUQWXsfxyp*;wO@E1J(6_a%EnYrgLKPfut~UHzZwb<7Fa>&C{o
+zo4Icx)DznHH#|EXc&`3=KGxp>yK1YYmr5p6bpWB2HUGrUna65ho{P_q=>W!fkJWr$
+zY1y#5waTuCz0)dd&IUro37TiIQ-7}n`!;+NpE2xF^QkN*bkec1{m?<mhkx>+zNRkl
+zQEhd7ciaLJxtW(nflI&an0D|gy#8I%cxf`iBy!K$4k~NPYfhhtpG_)H)m)mgNBP*&
+z9@^$dg`+ixt53I?)ts(r5HDJ)YaV;Q?n!T-n(~v~i||a$@DMXkcQp{G+(W{RK(p%c
+z1D|L5&U*ak`E}6B=-<a`mpjaU3<0=Nxi-&H%Ykx_T=f)DUqv$7Td0!NJtDl9<@ukO
+zMQlpm4lVh|#lIv4!t?%`ba`Is6SF0Xf0W<9z9sSasPs|kldPoad@>%}Tqa4WI$d?4
+zs$z3Rtn*#&Jzjr0oX*()URX8n$F>gme<7Hf!#bRrkF4M^_@fH=qpGi~UfcW{0dKAg
+zibd6#sxw{pe={!TTkx*taBX#^xnH>0D4AOGX{Ck@s#I%@S$X2+c_i(`ALX}k<05{O
+zJq|0~Rv9x+M!W)VDr*jZo8>N+<v?dkajN25J$3(g&O>mn%b*MjOJ0`BYpk>U4(WQ>
+z`nZday7YGC>_ctD0raO1Q&y$Mwr4&qfE2Bhr>Ti`H4ReHYrd|nspR#f@bw=UR9oNc
+z>+)!SI@J`!cB*8g$`+7Ls_a#sjHts?t@e)%XSmw1j#VVazG1bYm6-U>cBLn6T~|6j
+zwi8-^SLf4*x>cO+hCaMBGWNvaSl|AxGWa$4TFF4#5#$HQ)-b5FhSp&<gJbWhR73pH
+zjI^(2pzrqdqCO}^<Q{2s%^H60sZ=(l3Pi=qEP-uZ%2$rDe8bE$TE~||n#>)<;~T_3
+zZ-3k4Xyvi*%d0${&F?AS&HLH|sf~!FbA@wo3@)BNc~uJxkxIIUl5Z3rJlQ=43xQW_
+zBf>ASc;2=MhmGY=p6nha7JniQvWyq@*KuT3Jt^0q9+NvC=+b6f%j0HK5Ms0cktgJN
+ze*7%rU4)eBQ|~tKrBh*&Qk&A8$2v3V39DJ+utqq(v$5?HYv1SsnU7@7VCmqNl_*<#
+zwJ@UL<YC0CFZ~z=LbK*R&L8xrsc>#^^6P8v;rzjGiLG<P_xa5a%^FnUSt;|<e4iQN
+z$yAfm$FO)Xr7n)d$hhcjHe4M{If<cB%iKA#_P#T<9Md>id*9jGPU*Gxows(ky^9dh
+zxiJfS<}(bp4jTP&Q9lWN>6DX}fAw-9J?dCt)GxKUsOx2Ifk1?jd`=J}DF{B(>6t3W
+zw8p8J$yE`29@a5tl1=|1X7&5p{SU0MLJ0h|2I;k{Ho9Jlug~o3xmP$b*=P3hjF3R%
+zd}f&EiugYeEB0~8yuAdA@TArV9Ke&|Dw;@sQ74P~O|4E9wOp=e#kKx<r9MeNb!qhf
+zL%bQGcQa>mS;s-+8XVWAoUgsw-at2Ip`K)0vz=*~ugDlTb72xwQnQ}0YRNqA)_3ln
+z(qm5pv+MzfrcR|}$>T|n+sxBc>Qo*eYz|$~g9EDaN+b4JQ<x9bMkFVOxTY~qtFEY>
+z6)W9Qeq_EQkYv6dfxYR?*r7_+o_@csasT+$Ju_=-rqx!P9_0z!Hv(5TR=U0Q;sFhG
+zn+GoQZ#ZY%qlM6{>BPyrWJ?j#4yG4+Nhkh&YmTAUbQ1i3XEDSUeOUr^y&}TV@eg1M
+zTg3xC%n?j|^u+F4S8s|4!&<#j7m0pyN@gaCb^qqhlY3~E+a$Yft2e#O7oR7_Zo}LU
+z>Oce2{x?=}*5W<P>T52t{PVQ=XBKQzbFp^0IhWL|b<8k7l8Cc1f-t5raOYDZ1(bI@
+zx-^z-f)_mK;cE@`#xy3+<ZTG<Onw3DJRjI#{!!eqqs((?hWV7Jnf{#Dlie5eWS0ZM
+zW@9a1IOzKiHM@P+p4}c8e_0$G@VUUze2iP@vSg~tq1(0<WO8okVR=K+QJTt13csTE
+zrMeLCqLEW!`a;msRNfp!W*hl1mv+h4seJZ^ge@fI$qUn|HLbl2E<*d2%;GrHq~>yR
+zMwnwmovrxlJeyj(w&lbJ&R03QY_BU!o%&eKTHe`|rMRY}c>|`j3`mL0>vkv)*<;O;
+z<_>mcv&Y%U#tL?-oQR)GxF_ywc}yO7mv&#9(5^j(rm=$SLQljOU`I@3ZL3Sor!so3
+ztw!fYTojNG?a_FQsC5X8N|)kLHP3vVfm~MBjxFBFZAPnf#gnR(l~r3K)oIYl?!&2m
+zIH97&#G0A9TD?~<R>VRCH?IY{aIz#2UR%w3KsF2T^hN2qYfjUjH?)qJ66H<wt>u81
+zx5lhKDs?qtwX?Q{fk#B#NSdg6_%7xWEDsSxJ2$?Ei43CZkD?fnV!OYk-F-K4kA**e
+z!|jvGt>v|>y46<8Hr^q!`^>rVK@4g>txa+1h>US=D5msR*Qi(#_V?!Dtr?g#A|=wB
+zr8cZh!?I?ZG@r_CR#x><{~>WQ#(Q~tLb%t?>t;?6V|lmQDJDH6ox@3|a7kMF=vwuV
+zJ$H@zPfnf6T;8`oe7b*ecxeHmNM13M3e?`Y`p3C4{l$?poVy*RWwL<IWlr=C*UOJv
+zey)(89`e(Re!^Rn?+WzD?-}Tte;G&C!#T3<m@}0-HqvL9a;FC!I*s{6{~c^Ia&h4J
+zLT^tu--W9@oqW0F7Xv;0Ddn{jT)w&weTTwo@7r0LQZ7!*COFckvPLDrvwB&QZpz*9
+zJd@^EF`@&Ir**$ZT<p7@w%Ze>t`k6hP1D#(#JL2?<9Mc<DW@FfR2#3mFbJl|_&?-T
+zOnqA*<))^E5eXxXwz5Pm+QD-s`4NFDb~x1ITlZD&;I^y$(12_#iO3J*Dn4%A@YRKe
+zsohTh6;t7;yKEdc7p1orJIqI6xaP~X!i99cKrX&TmW^{`L#O$E%0KStH^k9wX*7|D
+zT|kmYO0Q?f(ZJeq(af5n>1kY)6X|cpxu`k#GsB#wx}4ZR^bGS#lw1$5x=HgOLU-J8
+z;LGC6=S*OO`9kNVZd~$z!FvXcl@3qu#uQhGhi$^<Zro=1K5nYtLeBatxjh5c$g_`6
+z>JMMlui!&tB~N0Bq#t(<=Y}n)*tVmu4R&R{D4PxkRCqGferC^Yqm_uY4~NL-(TLT2
+zdh$vtW<&zzmumaHv_NW`sptpmPl20*O;=xSnKDMOe2^+ncP`aEU|~&N?UlZdFV-KI
+zm{o>4H@u;v$Tc$+s5tP{Sn2YFOvI1ckeW}W*`d*K`c;)?DZGWJT%}ohTqcGbh}$0-
+zVX#2K3U%%DhMG@DzXcE0b{^V#>hQ!s)~TAI$8>$=O_h|!7sI5i);WELT&%7);ykfp
+z?Vv%2xE`=ErGa9_dQiy3qh@2uc@Ee$cpQvUj1p8wmz)>j-+Q$w4V=hf_9Fw)Xzsgf
+zow%`e4o9k8<~2luO!-=3e;F)yvwO~MMrzZ~MC3V}+b`Sqf68wAm`h&Mvv%Ic*xUEi
+z%cnz6aGkYuYcpOYI_0`^<MBnLnbJMTuIyKTz=tj~!y79?xoHUfkJ0;5!$YNyQ3h~N
+z46qTd4H$omfkV0-WrOk|267^bwKDb$R@8+zRSg~E@YT6)8pA#ehrd%;xn<(8O^%wD
+zNw{rNVTM^op<={d14o4!p^OGpVq#{nFzT<8TRu8VM>r|c)wnMlwe;AL4le$%)!~i%
+z*axP~LmT(e*`e+-lc?E+_ZD4vuhE59Za}zRtUJO2{UyF3zPgKYA$$l8oYsEbtunxD
+z$l-Ihh%dBeQ~~#Bx%h&OKNa3<)VB`<eJuO`@Er;dbh9)8-yv?|!v>S4iqjE89qUim
+zwT2is$zY?)Ot){X+wcq)59Yd0)7;m{h_Ys;Ok%psoXfBOz8K%!xqNcegw@PsGm7{-
+zhF4{2bwf+XxTT8_H??hU_<moEf6QFliuh6+Ry&isJDOOWPGNg1?{~3hc(}~FrZ^hM
+zI9$AqbnQhH4pDrCB3u+rD45CluKf%}h$!CohwN?Tn76MkOjZYPk)Grl`RUG&H*S3o
+zX&?e_f2V=1)Tr*#Jd}0{aF5-<R>JOXQ2hd*_V4WvVOyxLuCw@Yr8t+FinmYy-htl!
+zP6PIJ7uND_wNk?F(oVvr*`CfdW72E-1|n+5q}TS9cWhN(K=Kf>(V>-J1Xo0xA8_Y}
+zo_ny%^>0ekpDJlvpDy>H4n6Fz7!mba!U%Q^as^cLRck)yOk(6~!!Tfy%MqUGOtaKh
+zA?CVg;j-Kvni3-`!g76Cid%JLY;ji?g~qZ#L1SWG%f1xZeq)Y$6(*_flbvtVrTM3$
+znjPqCyE0q;g(2%KBY@fzI*Q1)ZcMtiPi1g5Lk3P=YHNnJ);~uAGV}c29?sndekT(n
+z?;6@VF7jxqP)m2=v@rRnYF?GLO1EA1+mnqcJzU;?VTXC9izAtxe1}6&g&n&~%sr-f
+zSvuYE;%D^Ac>_MrEA{q3QWv?$C_&$?LG(l?-_XtHO~itj1_oeITdi8ut1)u!zKChX
+zXW{Grp+wA|iTr-H@NYPq>#Yu(mdCj}MSL6R#B;jtvQn{EaXMTLcrOO`<m<UujX@z<
+z>*dh1w-@`BwGnqpp_jqreF$Zy^w`@BFY*Swp2usu;rU?!bFVN*beA=yM79zgZ#W6!
+zmdn7KZ9ANmLuJojkvCvp9#1<CC0;s>GHzjxNui9EA2nDKUb51{{df7{1gtJAU?j2o
+z@cPq=QAFu#6&#DGlvN~E&Ze5ahkd8Fl&vSN6g`!vR=2b|Qh%%~8-uT+UVqv_sAcQr
+zDlpDB40KU5TL-4{o1W9k=?_*@$Hztv%86w+=8V!fziAEm(o1t2xG##`4>+gbo!3wC
+zp3`DB1UE2n=rP>*Q%8jza_$}z<=macDc<O?3U0sX%Z4qUMd6fT7akQ4dn@rmQP;7)
+z^0>rzicFa(QNfg)-u}Tq9sy2e`n%9Im6w2@l8B`v+#&!Kp_@{ghrY)6r$I-fG}k0%
+zVo4@TE^`gP3}4BP4B{0pX6gFN-Nc@`IbTNd3Vnsyuc?YtUDl=!&K6tG0k@r5r$Vxe
+zZvAk^M&&$#=dX~b8ZGPc*65`UbP6;-UYv3d1%xN=x#*0-DU9LK%Mt3i#mK$g$bq~O
+zQ={p1FG>B8Bbi9`qPmr{V}q3v)Vved#IZe*7J?1_%BCF55BU!Wh8+z|M9t_9iDsnO
+zIa+`8#L-WVR(Ct>J>T?&zX4lO*kDzq>Ep1YMLiO+x5826OvLW;E_V*%L*I<psG%oN
+zIZ#D5z1LLjd(YtU@^`ounQ&(Ba~XE#fI3%nc@b}!Be=?-L3QmJ)FQW;pP}5CY{OtE
+zV=;|JtS#HlRr;r#8T#fqb8BX6>$&=~$hmbO_$g1_ySg2c*Ok3p(1$mjCJxh@PFrjs
+zNnx5Hr^DX4w`25<%*dQRv~}n|aRwLH_L`UiXIxFyP4D@t4J5O&>Mm@J;bYW9zD2ix
+zi{V?e#rkORppEseHr7WAOJHiWVtqAnjK-5FY`cyIj@BsFpMdpb6}Dm&>!aIPA7!!L
+zrCA>h!($ZdRVGYX)%hFTzsqZz-8XxVB(>y1a&fPc3-01h&OcVY^GT%~oi5>?8xyI)
+z&|{THrk16}ItCr`opy#*^gZ0IBCGyO>Oh-mXWR4)ro!<c|9-viow`bY)zEVB?*q#}
+z-{>RvB1-k#CK6g%=#`oGIp^T;*u(6#(BJy{&W5vFWG2#OwLiu4j<q7k8n$xgW=@F+
+z8TP)vCf4;n#YH$TOrtiAI#o}fadk~htUoe#{pZB1WIg>&>pEYRA-we+GXjIHuiCs?
+zo4?0CEwRwFPi%Yl)Xa*F7CIc<qDaca2XP^KQ`LY&{`~`){<kI`I#<-qUy-$yOOV22
+z&sD}7E;d{lfq%dc?hx}3y)^Q44OObbe>Chs;>G2T#AfG%TNyF<F1Vc!9%G2H{z3^+
+zExz2jcc3dh#1-Ov@cWq7e@NZNs0yZq6nFXJX%ZPZdrqbQ;LroVV-?z<b8T}_N6%#0
+zHJrZR;j-x<MhFF-5cL7AmMhMkd;bwy+?|PbeK>pI+0?i$9HX$}%UE*n;j4F)EqAcZ
+z!&$b@(Zpe0hK#w+y&s1;eX?;q&$;Z*^JUA=`&&`XcKPZPzzHm-E?b(w2{GRV(Z7@D
+z9O<ly%yX{mhptX^`$RX<h4xL+o)zsfciFmxwY$rfN2<XB-|lQKTi#4Qqx|=N6Tu+A
+zMHl3^XxsdD1Tw|rma^q7|3#cx9uD$XbV2@#w$0yg1Pp5~|H8Qpj=9Q~ld^Si%oQ-5
+zdryCpyQja6yKD|0c8YGZPG^+o^36PkI!W)%&_>>W`j4tI@+^ggLkwU1+V??NYwV-S
+zS!~&OTyK$|G-xJN09j>Zi+C2S-aH{>)5H+VMD~O5U7Ky55V~n%sBO1w*iB`lMyOC_
+z8((_?+e-FZF^%%SOGE~}zIj6Hrirb0-X-U|zfex(xj+9=qRMyQr{TWO!oU9F*DXZ3
+zj;L*E;HMdKyl=Q-AUn*>6T&u43=4{z(szuPwxi8Dq^0SgR0WT7(w%onnzYvYxvo-0
+z3)g>I!sqp$$uHT}3A)q8Po|rn*$MpQCG)d1ouB1%`FWu53+KAd&|O$tHv?<y=3s5z
+z0<5iDhP8Dou(obp;re><v#Fwl7Q?%R<QEO_ed_johKsgfERTHk?xu=5u~*wvAwwSq
+z|DT1!Al@<WOg+?w-T<R`CpVvRuuqaAbMenDuBiP8BA|E5`p<_1Owl;KuHuu<o;<68
+zROOqUTBMJkOsSN!sgCP9Lw895oq-W)!8|XSpQY*iET7BI1BHB8fEnrIX9Z@Yuj~a$
+zU)ihjJK6gy;x>n@{Um~cdw+dD#5WUKwwy}sp6va|ce)>sAyiNjxV^8p?4J&od!$r~
+z=upCRX`e80lDDb7eYZ=%)3F4}ouGSZN{vBPgI=HN=N=ew)n#+<O;;#a%*S|-51(nn
+zXu(pwUu4zGMfkes*T1??2`QSx7G6dIRTXuPZdG~CrSF|{7M?Jiy-(2MhrcMr2U+`o
+z*Waldbd)4@&2xTsEYIm-$ByTXJZAuW_w@mXI8<_|l^rI5lg^ha!uGL$<UKY?xtu8#
+z^lqE+f11CV0Pxb$v`<=FPp{2gxtCz%8=fpK)tjmfy@76An^0Ntp)0dnwZH4Dtrsso
+zK*!KD^o_8FunWG=TYU|!L*E{HfVUzTs)vNE_x2ws;CV+Ngx7yR#_JOA{@HWxW%E?o
+z*j5CLV_Qa6dTvEd_sPf)J=bkG<N2V%bYavBqjxdtgwfl9AI_emte1_wh+~|7t)WFg
+zF^v9ohQ%}IgI^O4iy<pkIA53^>EBoJ!6m#?d>imKOo49~h8}}+&W@Z@T#JT#hX)*T
+zzFZM@aN}VoHwVJSgRVf;G(OY}s6Kj{6Ri~k4ow>H#=W+s@%z|oCc#qFMhq>tYIrXW
+zv?RXn9FI31_e86n2guHS_(!iYe_}&&S(>xKIkv+4PdwN|@7y|o%}$?{laq!O-@O>N
+zzViWrHxKyI8)bb>W}`cPyem%=oOQnRZrHxS%OsxHTn@LMd)8MG(o{pe+?*2mHM)Z#
+z!#k^ErlJ0WEd<n7<hV_cS%7l`Q$fyjR$cT@DX*W&K`z-N;3yj#>7QIa^pN@K9Y}^I
+zx1c(MYERr)770G}O3C%7)CIY(!~K!^=nn3W;Of~n_fL!a3~~Rga$h#(WW5=W?{;uI
+zvA(X&x>u~1i1l^K`Vs$q4P|%4)ITpyMCqviy(m+52E}40v3REbN0_&#Vh7&FDQ}xm
+zT`k@|Bi_d0ZClu9`4lFfs>k!GJD=dn|Nr;zIIwkch_MrT3;F<RgnHf)Vho1HLNlQv
+zXcP1}^enUwItHDATA)Y{3C2KiP%<<VDulK{PeXr(%AwbxYUmTF1?oB_#Bf8mLTS)E
+zXeqQB+6?^!`aQH4Is*M2`T+VAGPvcgCo~wE0L_FJLd&5|&{pV|(4V1KpkvSn(0Ryl
+zSBTLYx)!<>lD}*2kwJ9(U-&N#*DoG5Tpz#GZvOF43|H~%hHC-XZnLAx93A4??qc8p
+zrH$gg+hJNgFFVJbT~M%Wezs@PvZd^XzP;Vvwjg_{LFOjrHzw$?3TKA6%Ao}O@8D-q
+zQT8hL(%cp9g50GGJR&ME&W|-*C70OCT{%CuPzP<yFJ4loQ?27JJ%>Bu$83<*f3fEb
+z*Ko)K?S!(89AmkWZ4?@djG@NO%97T_8%vC0Bi>lSm!;r*W0_H8<f6*MWFD#_^}WEj
+z2{TQG<<ob&EjCu++k7M<@rHJJGpYm??qcQVQhp2C;v#90G)yQc9wRIki$P`+igI&<
+z^%HYFnb`&24rbGAGe*72uSrW6c@||CELxpAt_aoq?1E{z^M!vYE5&=`(0Rjk96AY^
+z(0R!C7q`zsF;E<o01b!6L+Q{x&@3niDu4<h53~|m1C>A<piR(LXdCo6v>kdH+5tTS
+z?Sytgd!Uz~a%ewv2s#2)LC2wL=p<AJoq<f~EYtv<hnk@l$Y?ZN;gAE0gj`Sz6bB_h
+zqo53EF64o>Lc5^j(0M4TiF864&`M|<R1Tel&O!}PGvsJCT!W!uP%@Mb6+n+byP%U$
+z_yxj*(x5_UD^w1hg&e%`DLjk@2ScgQENBfhXU@Fr;@q4#$(uQI=I7+jF8~X(i^(}{
+zR_w_^Et)xVJPQ}e2Q+i$<YgCoZ1r;Tcv+EUP5ddaHFM_VX3twB_6t2lw+;h~a*I7h
+zi{^X8%)6ALvS4X$j$xZhM5J0u*zTO%f?Q9o!FD#|_S+3()F?ykp_2V={h@pBGmK@0
+zxkcH8E%xKFa|1YN5Nbq#A_YWgT&up_VB81}gz&}~g?p?Uw}XShxa$q$0dO`Xvczj~
+zv<Afud>;hGLpMSLq1$mZ3J<PDy#|^M&0U`7$(~n`dmV1)E}s{q7Oq@p%=N4)%w3iz
+zpN+ZFoE5l>J+x`_-3z?gMLF7B7_)SNRxg))fdiO%g}Io{)oj*m!D7d+e9y_v%k~y{
+z-1C<$wVk==7c49G7U_6N-enhkw|mR~VCRcGn!ggM_VC+$5B}WtT}S=feVMy_QIW?>
+z>T?zq7ZzmC&s~zc)Z<=~T`1|xUFiM~Q3$rv&Kq}oG=lv2chNBB&R<rz>N^-U*PG*U
+z7v*}qMN3t7%uPu(=H8u=F{wT8+H%{<OH2Rl9!hzZvZ@)MD@tSTvL#Cwxut9rFOnRe
+z+s+JK>Vq=w8{h7|FX$_7mt-%^UXYvfpO|;4y>Dfp#4R`<F5yx;r#slQdHtQX=jN<h
+zn!SYLzNoE(D01g5D{@QP?Qhwh+?9(wLB-m(ft|L3@tr}m+4+x=ku-jTXaC0E4)xWu
+zuqc;7iB)aw_Q!qAHEz5$+!@q!_xRl6`9+Hgb+t9zW2GvOE66S`4*KHG_PFCZd>bQU
+z68K?RO<hFQE1JJ>RgfdT%J*eU3Z-Rq-!(6vme-vo!z0y17_w^7O)T+u6>4OY>W>4o
+zZR#@A4$E9t-EH*`g4A1r)Us4>+xbzDTGsS!^If6sYR(_DnMV?ij4`@EGUl;II=RLW
+zMn?tw^T5usq7?Eyy=d9|+~Q&k`1^jL9>2Y2;e%@p*NqPtu6^i*Zdhfw9)uQ@(RV`P
+zCiH&#>y`Awn1A|x#t%QBKYm2pU$sfw5qsiZup9P8y%*XJi8`)@{u7dM+)mJh624|E
+z3Y~;xY!`hI86LD1s)F3D!~v>;qKy!jj00u-w-EKWkN3p15PmF!2QngyXT0ZS?B-$g
+zw*(V={AQ2*{`1%`htZ)2m*3^Xx5vZI4L$BGutJtmqaE^pa#uha<`Z@SF<-6Xum}?w
+z)3%R5Wo7q&-=AfShl}x3VkapK_F0c@B`^Pz|AlZ^Vw#Iz#rU%jeJ-wY(Ahppnq`#!
+zpZpT{MQY@}po3e9&3|^giV$VgpGSP`kTu8un{?<ILlH5s-Ab%AAO2I=D^<#MIT6=(
+zK7V(-C7kv$BIVPIA2K_!=Po&<V#R+Q7jZiuKZJW8W-IadCj5|mT>?j>4$McV%TULh
+z(P_*zR`UJQInbrEn|NwhHa;!pcL9FO3`;_lJeO2_lXu_lZ^snp5HBg|%kXm^zbpSY
+z{n2@-IVWkC9O+nV+Vj-rw>^K9c~(#8yHLtd4~WUyIB!uAgRAuH`HLAHOv*8&troY^
+zCkUpEo045PO^rF#?5xdPhNroAW-rOjSe7<!(s-;IGB1>y2qav4t|usNq9OVnqdUaL
+zO4ZhP2BqznFa@Rk7i7b)A>X8rvcHMH;#N>3yyCA560^%7iL0IF{+79HTo8L>Ed4l3
+zpAL$fyDjr+7R~_0|13ztmVQV4Ujn(ILMR3*f+Vhz4zXVXNu1YP_#i0XeUN<L0Es{J
+zk;e7Vla~G|P~!JAB;oxQ5_@t-kHqgSNWQ-d$@gfOBK%nx%BCTx1bPI@r*y;{lMPAN
+zYBjSTXWWT;v1&c;Q0dg>8HS{Bns=!&1wly$^Yj_at1=dPjR{4IjA_{(`IeKt%8>60
+zu~RGx>@C$QL+lqRL;S*>vWHu5ky5d`kiFEHkUP(ql3iqsDJ%k4vEr~4Dlo=)7Z}rW
+z3yr&&+}*isxiLO>zSw7evr60)DFy!GcK$*T_lqPSaGwi^AH)uG?*eZz^F#dd<Sv<)
+zD|v#S%S460wvqVXrXDke?IO^WDL3Zi+_*~llf&O&_Z0rzqFBYBk(xSk$&!(Jlrc@U
+zH@Jb9O9>+by+mXNzd1_35EJ;I+AHFtYO0{LQ_|zAU@Z6TdhJhfn+@%s$X?pbGRRA5
+zk=jk{aN7OR;fbwwv&n=iah-r~^S~+Sg+F5`!GfZfSWQ-O)F?b2gMI-x4R=!3?^5k7
+z;y}{A9Q}CA=Y!gRukuy=(c#GGM8dJtD{7H5+2Jly^+|`RvQmX#VA<DUOG`$k@~7jV
+z+k7qSvg0Ftz4R`2yrfsKP3$;!G#f*T<uBdBDd3IpD~I1zR`{Zm|H0IB`7ZzNHWRU>
+zZKfKj#z;b3!mo@H<WKsGcw;(o)_>cmlaE8&p{Jo8&@<3ZXczPnv>!SGRYPZ>vrseC
+z0vTZ;u5ic!MM5qp3W|neAU6~X#X$+sC}=z+_S2vYXcm+M6+$ba4bT>7E3^%I8rlPe
+zSaIHu`UrF!ItiVD&O+y*7AP{Du%W?FGL!-3Kr5jVXcM#r+6HZhc0fC!Jy1Dx2&#gr
+zAroqW96a_R_M<>IG#DBMr9*Qe53~u|0&RnyfsR8aWJUY`YH(9RJO0NR_J2q7Z`Y;L
+zgZ{h!4fI@>{&%#$o<7h14>A6`|6m^;G}`||>FfTRf7`wL|LVM##Fwmp(6?dZLl18%
+z-Rys)?E631^1~nfc<ZA-`RTTw{rs`VpLp^Y+n@U7ub%$(Z+^SucfbF`Gk<*cxt)Ld
+z^Ivv7|HAG)FYf*8OE16jYI()J%Kfh$IC$vr>u(%+^R2h5jvjmG_}~8iZgtIjCr;L$
+zdcW@U2OpmK=;MEw^`8XJ{`1q%8a_Yw#rc0VHZ@=P@~f7wFSZ&Xp<&?>ojN<ZbnO<|
+zy@%6vS<lO(diA~{`pQ0iW3IZopS%Ax17ZhWdtKc1Hw+paKjg-Qn{FOD?3P<^8$M!W
+z;;7NLCnaakLztYmVBw<t#RW^2E-SphsMzCOzGCI7)%VU~Putw@{{Fo+Yadwme>(mD
+zr^Ek$%>OZC$Bj>!Ffnz~<U7))+<6!0sHbI2&zvzc>mJSj@BaS(3I0ppRT35Ak}>io
+zP-IA3z;JLIDD#aSpp4UZf-<Mr1InDD9F#HoAyCHdRiKQqt3erK*MTw?H^ClY11R&3
+zW>9rLy+T|vMt6WcK^J&A7!5{&Zm<^^2g)2E0hBq=aPUen8SDe5f^r>JIw*6CnIJMb
+zV=j0#xDf0I7J_bYCD<P<0j~i!fdjxTU@W)|90+a)S)MR<fY*ULL798(0cHK892^85
+z0tbUtU_4k2${I)=cq?dvw}B1daIhI10UEtST(<)bFbQ;l$zU`%26Thtz&LO`m;g=y
+zhl3NrWN;Fg3Qh*o!8^d2pv+z7f_H%nL7CSSf|=k-Q06ctAp59|O`wb>w}5QCH@1Nx
+z6oALUP;dtr2JQmG!ABThMS$h#JAp^Q&R{j@0MCG3KpA6n0~^psf-PWo&~XLj0gM8j
+zpc|9|HyFGOl(|_?umrpu9FBPuI3DZ;rh~n~Szt7{5WEuffPKIcurK%s7z1ttuL7S2
+zuLgI5{lJ$%H+Tr_4;}}v0qej4;8`#hYz7B{;n9=_&;?!x#(>v@ao`Q$FmMo<3=Rg<
+zz<4kRyb&w}<%+R2;4p9#cni1{ycOII-UdDc4hQ#uBf$OONU#b_1W$sugC>{+o(Gdb
+z<4Vd67zvI8qrvfD0+<4h0w;i};6yM3lp6@=f|J1l@D6Y#m<DbD?*zAicY%+C>EI6V
+zZg3Zv36_I1z$4&2;7KqSJPR%cTfhP^vQLO>Js1s!(165(;h@aJJA(=6yMUv>u3#z{
+z31)!O;LHUt2MfR`a3$Cq+yM3gw}4lHJHWx<E-(>10^SZ*gX6$6;9{@^456Wl>`Oer
+zXs|OF3w8k$z^>pZFcM4!`+yl>B3J+}23LYIn%)G4gImGQ;C8SJ_zc(;+yh2}`@ue7
+z6_^N~1Vd=>&Vu1!Gbj)7g~#9?bb(#L7%&oy1N(r(z(g<&454A11$F@!f?Yum7zvhu
+zeZWV+MDS@agobh#*aa*HyMjl+K43MN2sVHrZpzhF*aIWMu3$8n2*!dTvBX2ZgURw8
+zOq1{6O!*#1eB?Xmk?&xMm=7jCVh(N-bMR>~PoRE^Irx&8gNMX?81+-k!8$Pq&x-kQ
+z_$7KUoVVygM!_$zD;OjCWcVd|aG2nD;whL)JO$H;r(inu6bxTOJq7!KC7_=58_bSn
+zR&OvH&sJ#5h*GT?>wIe-n`3>K^#=KqRR@hCO%T1F@5=rY`O8zYaCl_d*OCx}uiBo-
+zZ{<(qQ}QSBDEV7z`McE87h3v4%f3kA<xeCE@+We5`76c;jrUt9QVH@#Nf`vSJ&}gU
+z-y-Jk^5?bOiIhP8irdnq<5!@h8zS%1`aCPX%dK=Sv}6R?NY~^q*NWE?%inA`A%7xC
+zmOqi&%iluFy{u`;-(t)DV#~i`q~h}Dwfyy1;TKx|EU?1ySbC9$$lqcm-4VH@%@-Z+
+z63cvnl|JFOa7^UqVpC+(nq#sCA@ccYN;WFxBi<NmNWUy)B;H6-B}2+ZyfMy@epbpx
+zJQ5)3qosU^It8^}nVP6%j8ZP*kp@Y>E@ea1ccYf_5sxXw6}1<2D$){NPQ-kgQj5fW
+z67n@&KH`x&iT$ONUQx?fK*~uxQXDatvLbO7|E0XdqY^t(W<)LiOSzG-#Ez65Nw37e
+z*tj3{80Akf91(L#i<F~yVnFpmEp9WETPaTxuDF#lCGn&x5|a2i-QuC7ajcRZOZgH%
+zg%7eGCHxfsrJThRs*Gc#tchCEE9Fi6lz2*+i^qnHfu!6?JVkmXWlz-i@SBFtW97A!
+zMLWNwJjP>N;wj(bu{{R$N|i3HUajnFwUk@ij+EVaN`S;uuR2Xo{FE{*ag+EgQE{H4
+z;w-B)cD_jYmT<GMBV|0E7)Y6saxQ8qS5nqRE&fY+7rtGZ7AgOB-py0-*WpTiu;U<g
+z!d6SYXjkhpCh?T|VVf^ed11$2@=>dcgWO8Jk@$<-`6|v6$w`A+A^E85g04%pYr9TK
+zE=#KIx+T6y?i!RZoyxI_i&Bn-N1E?T6i@F|Jks@Wk}*~JA!!(=%Ab}g>Uc=ID?ZP}
+zj;>c@6(6O2we3rrD&<f3yHuset}|jM-O4jb|1@+R%aE=Ey50ttvvI23(0zc;Z(UDx
+zeveiB3eL-5`*!+MNRRyKbf&1Xp!=UxRZewVGDgKur+JL3yE@I9_d3nvR9P-oby24w
+zI6NIcod!GXbj1xj>@<~AI_zmG9y;taD?BL!It(55M5}HJ&vc&X_GGLTk0tbLb`7w@
+z7_ahFhcQLvyd8#a3nUDk?>dZes?O{5>3GOGw&dd&euL|IF||*^(>Y*=H$}xo^KFt!
+zt@bxvnQMQis2tFI`*we&7U|Mr`<tQiR{N{VtoC=jN>i|39rIv`s#P81co!vC+CfSC
+zWJ@h+%vAA}bcs&qoE?6al@^^RQWtH0NgFS2<V#04x+dyy#;Sa<c_DQ|m%qs>{@PB4
+zRpuo0F)AOloitVV?X=5WQ~RS!vbJ-FT1V4%(yjU`{){8f?6AfJ<;QeY_O#ovLH5&w
+z%%@s;DgNkILx(#}wJ2JhYUPXAxzp-jM4hhU-#)IBUPbs+q)_I>!b6$M4+eJ(3~|W_
+zN@OQuVHf&pupE33JOcg+tOmD(XTTqT4dB~g3-~wCaczj}7#Icq4s?Srf`h^R;BfFH
+zI3AQ%ARRmc&H`Tr7lMaCkv&`wdeA=xJ_0TVw_x5Md>Z|HP-HwI;7;_?|GosS1rLF{
+zL6QB0f_3O6&qekV4xU9XeNZ#_FetL12r&G*5SR4zA`=oBkqiAV!5Hv|U>qp*b{O~<
+zFd6&<D6$6WSJTk@L6IeO24|rcS%%1z9N<FqzXCnrn_vm}4EP9m7~BT_2z(mc3+@D8
+z178Anfrr4qgU7)tunv^I{VZ4xHiPegBD?AWhR21tj)E?*7K{Pk1>?Zi!C~O@U@}+%
+zrh&)7nc&l44){l~5PTn81O6D?1lECD!M}pr!MDI?z|-I!@C3LYJOx&PHQ-6`04TDk
+z0icOK7Ze$j$e_-nF91a*buDOI&&hs3WN=-<Nc3r-$ef0N(ddgok<E1jW6^H~6Tn}C
+zqrhjuR8ZQS4DbbTF8C5CvLlgM6`<b)iVW&DF-I@5Ba!t*f*a7wSis=>jldT49x#=7
+zM1zl`e-7LM$~Z@4gWbVh=<fnWrWOa5qt6FR(Dwt6pw9+HhS&qFM$gpEF!=5S&Y*u3
+zYyhW%4$P&3wxE}>p~&Fk#r%d4m(*+*@w*9(LcbE6iGC#LM*pCE$NpuY$jXwy!I+nV
+zqrhokH0C#hspwaMJF!0y%s{^Y+<`t8oQqy&I0fMML6Hp(0#~A60&W0(U?KjE2DhMp
+z2%L*P5quo|2GD^%0o;N932+y<0xSo;;1O^-7>)lu!D{qB0ndOLU<3G5(9QSD!4~vo
+z;BfrC6?6;=aXkRW@jVKRLZ1mHpzj5`(a!(}gWJI2;3Hrv_zQ3*xI@gb-y2+rekPcV
+z{tD28UPgN&lN<$>px+2S0{#}<1}+Dm1|J90ad#!S6aBsN9sM=nOXzdJL*Of5HCPFn
+z;7+g^+ygoWhq&GVqrrpVOx*VY<Iv9nWsd(LI1K$hFb#Ye%mIG`t^t1r&c$6{a4Y(s
+zgWJLTKsV_a3O<8=H7K&wWN;7q&0s3};ou?kC15)G5#Vw3>%oQi8w1v%pADV`mx6_u
+zUj;U!p93b~?iMhd7YEjWoA~YqUFhe5E74yK#-N`I#$kV$Ao?f4Wbk`nIrgptXQE#O
+z=77t<LNE+00Y3n@fLp-F!Kc6-;Ge-=;P1h5Z~}M)EClsDNOmULeRno}zOA0e?8#Q=
+zsF}L%$8(ibMXMJv-nZ@KtJ%LcU#w>MT3x_Q*0!T}J!o?oGuh_L7}?nB`-9A7wql#h
+zY~EJuS)lf3l@({1Tj^2!{Gjo>HqpNYe7EP1A`^)xX5y!o188ZHo`1<6L@}2!#ynif
+zp15|mT2>$<6PY)Oo%xDC5^g-)k@RZ0K@M{=QA=3j-d5}VA=+GiZFAWv+OC$iLCY>=
+zPoLB<8I#F;XMq~w=y6y!GcJ3aIZwqyn`^0;t(G`xwT_=wFH&J^b-v02tzH`BPoXLY
+z+FVO&v|9G8*na9Vq|H~Wyw~G4$sw_$`6y*ptLKx7c6G3MyM5UMXxq{IZ?s$awaphO
+zo@(=jD$lff33Gqj&QirwZLTFuwp#dZtJ}jZRAoY&%M8)B;|(%jZt+d#n7Ni(=I7$d
+zmTN3hY1gtLEjiTk1uZ4ha}+I^(`ubxwp!|*R?DxgE>L-`&6iN>?76xQSIY==+10Wq
+zz4u7VGHi31*GZYC9mD5%^($(Lzm{Zb`AfDc4_fY{C5j^7jE9?&Mm-1D<yfn=)Kl-t
+z%UAoTv}{H8nA-A@#j0FsIfagoEnm<&u_rRE#VXBOj<Q&_H(G9_C6!v9q@|Zyrl8BK
+zmIG<&q?UhZU-hg>O9@4GC~1)Tt!H3T<8Ad4mB(7%BfqvBPD^aHtU>3QR%?l_mOI#X
+zgh#qQX!(r}OUv-I#8=Dk=BYGlwUz+e^LN=lD}T0Lm;QErq2j15|I<=qE&tP!V=d#+
+z;cEGSE`M6B<Ehp1EAu6hU1=$^mf^`RY(3wUw$GMV%luRH+Lit;bMxTuq7VKq^Hm+X
+zwlCai*NZ$-b`8rnyIe|ZDso#f?Pwm{25bApl(TQMugyE!7a63@2T|K;7x|p*k(RI|
+zT=^osg2)mjwVIE5cfG9^d8wAZYk8y2Z!J63(s(V?)A^z0rLs#<WPlPvAtBoGKrKlM
+zPO~=AzrktHGScO$ylUB|4p+~Ar7lX%wD-b_UP^GgUdp+)yHJI%)pF9pHZN9nO`CgE
+zJFexXIvnv!{tA{YxJkyd9se3+sLfwP($H|NvQg{Wf90;aZ}}^+&E#qWxm?diWnO+l
+z`wzN!KdrU(2V-sIyIfwft_@fIBK`95?<CFqOV55ceb#SuM}M`i@@t!GY>$6Ob6b}%
+zPOEHeu-rGS3sE21@xog_JrGrTOY-RT*XMNkv7>zYhFkJW4i79pcFRvrhUT{<HT^95
+zfnWTgck(TNT5<B+>T|C;#teD2VD&vZeRgn?CP|U}k-C$=efPzUdH4URd$KZtH{Fw)
+zZXFl7?aIbSzqVY~C57d#l!2Z8V|nsVuX2KCpW%8HI$f?dj@w@u4z{-5vTtGkU%ux&
+z+?r&oE?R!s+;Aj2!W|AFBb;?zA?vRpX<ex8>h@&K)z7RLyDU4~%C%x!vPQZ4PybPd
+z+RBkcx^USFBfEH!6j394{xVgNi|;Q|1$Z3NE0NPpM{*_eGV8BIgdv*uMv3vw0%_X=
+z&ve}pwkD}>)71Fk5pt^a)C*6{@Fztie08zQ;^Cu>lAoM<ws33GRi}R#xw2&h-*5l^
+zkoSI`)TeOilSlh<ZE1N{Q}rLWCq2dX_Nh1Y<@@{tO<(>hDd}J9Kc9E2gYTbZU46xG
+zlTKv3oz&;$-h4k8y5;uYCq48|)u9>3IE|ZJ89(&qKPL4XU(<YIHSV|nz3{TQok`2n
+zpNsQ<fqw4iXZt<=r=;W4r(K;?NBqijzwX=XFG-IscqF{!11|fW`&!9$Ki-w}#joeR
+z`OJP!+LqMME{=F1=@)CC8t``I75F!~Y{lZ;NvoG`?`ej`;Qq{=-TuBO>A|!+k9=g1
+zp5)kTb`9N|bjyqd!wNsY75Bf*c;V5%CLO$UdF<>S*N-;p>O-&n<fWuH-Wc-W^+yAv
+zjO_&#yT-nfR6nKc3+G3i>Ybbar--swlYYBm_b-3_eNO$lN4@sglJcaKFHe73w*F?}
+z=QFo=uSj~f!S_bW=Bq~=Ri0i+dn%HSxBmF^E4ziDzboS6)O|_iE8>#7JaciBQFlHj
+zp=n>znE8FWAN*IsXd``<vv6x=Qch8yRY~>K*X_Hed9L4|H0+L-UhDFf@Z;i_v9Iq>
+zn!51gvE$rBMjHuTdV1%*mK1-*@Bec4ecT(3efpexE$Q;?+vEFwmV|yw?_ZW3NUHkT
+zPg(|V{pToVR0T8L2b12+NS?RD%?auBnAS&k9ZY&{=noeT4k3Np-^%-C(xIeZ40!mV
+ziUV9Q+mIRA<H(_;_qV_O)UFTVSJgj0dq3-N(noczt3%zf#OK(=e)Wfw+_C2hdJLs}
+zB!~H*Uix~{x_bw`_)K6Z?(cqWxA8_&@$Yle7M&-&!V7CY-t<ON(e{<s3}}U4$wT&j
+z*y%{pnwO`)+3OAAU%~Mwet0CQ=$VhVPI#fmXk*Le*<W4uW>UAGJp02F!}^RiTwnho
+z>lbe(6&Jkw(tz&~zqt?GJ-YW>NoRgM<lLesZX*7nCkOxht)z!PU%%yF0lsh9x_oB8
+zx08%5S9}t9t~24E=vVTyx04qB<XqF*V(#Cq>XLGA*Q%s-1E&qRcQO1nzq+j?wJPaA
+z&lg|(aX#g7NB_*59<EAy_KR27zL!n>_T*o6|ADHcn=2B^CfAeR9mn3RX{|~sdE)cN
+z9=A~5SMGb|#^j?({=L_Xb&n!GTNYjU)73|lel{z<|EhD8|C!GutbYDz(gPb>=iUA`
+z{Ma+H*NKLsN$>ZF957_&b)${cv3K>j_E^$|eox1_9_WRCm;Gkmykki{uZ$ehXJ^mR
+zM)kPz`?noST6No#&nz0jiSv?f%PanNEa_E;^OaMdjHEpL^|ybCd?)GV>KCs3*^j8t
+z-`4&I^&hHXm}>PW7B-mgsg}>ix)QCovAmzw+qnIe8fD+clKZsY#`G|)x6%E(YGvQX
+zy6IYPV_fUI>bs3|pVN99x6RRd8>^gJZ(~X2-<5kCcdXWW8>?>8dK(MR{!Q7p(e+!c
+zw=phP>upRPp!GIZojI=D+c@_(T5sdR#aeG;^I)yFapk|>QSNOl*{k(78a}PJvH4D|
+zw{hhamU{~eKRl+>V`1H&wcf_+2ejVC)H}7_#ywYQy^Y%`pHfb2+*GOcHWvOw>usF5
+zNb7Cflce=FZttn}HX8L+%6}WH_i4S2!+)mrHoA(n-p0a7T5n_dwOViEHbd)etlLF<
+zz@LpJ%e3A`_YGQaWBHl4lzkiL{zB_*H15%Q8@Ke;dK(k|{-$zoWBE_D-p2GSt+%nR
+zkJj5b_roK~y^Re|YrTzyOSIlb<3_Ewv83q@<=#f4T<Zlr*-K@5ZDgac@n#e<{E(rC
+z7|+jD$FGdMf@SIgjlAr6YD}_ZS&oQ=je;CK)S5G2f0(myRpBy5D|uLu?|DVm_f-kT
+zoK-hLON}`UdPEL0XKC(APj()+M~F@2wUE4GbQLJi6^X1<9y$`)r97<E4~!nEWxsB)
+zKl<&%wJcqp73z*Y8FYd>FqhHSPA~$L=Y>SZxCebt@Fma<mV=Stey|&O1Qc2EaZqHN
+zC&4ShGoZ-Q&w|n5c~E4;EuhGT!$)Y@ZX`GWy$h5vS`;`Cj0Ud--5~r`e22#hG3Kvf
+zUB|JbQ8In$;-$-0EOiIpFSN*g`)K#V+(io(dW?KguUM2LHxnsv_aE&pT3Bp<FAB0-
+zbW@Oq(28#EsMl8~jLNv(?OC?WU9fEF0%R)L-s0l8>qoltbSUEeO}K3{A7h0iAM)%_
+zJA7}8mTgs1+U9=Em^JRv?(Z0})~RwU^C)q{U$Xi&92Pdbs`W;>WzINW{jIZ6%qzwX
+zn<*Fy3A3wj=bo%MJzBQEN&ZXOOHSgBt?N5}lQLC~;|#vBo`kO5&mKzG{xhpx`9D^L
+zrz88nU9WpNc+RJT2Rhg`qrw@;$w%q6TQQWh6{24QwT#y0V#jtS{1AJ|P_R2OdjxyW
+z1o<U$^q0^d5yCIqKd~p_$X~F3!EWW-GuUeh@=xLri9b<RyyUyslfPhpg5Ais{n#6C
+zxe>j@D+7HF6r4`6_igbCb}R1BVsC4Zf8yq8^gAItjbi89cqZ;5XMX#)S>&1cZ~vuX
+zuK+Va+blSp@-3LJcG!cl|842meu@8LFW5}nL<iZC_{Rq6B@U6ek$4V<g2R??@+Z9A
+z!Z%rT+(d1el0})n2g5l$KlCA6v(M0eLcf6aLw8RbKkdUg(HC!87(H?G=vM}(E_k>~
+z!p#{uYkF~RQSq#-?6i#ByJzJro9~sYdx~c*UsNpj`Ea@?XVEhE%?UT%GK-r$<X)2E
+zS<?y&7A?)4bvO4oaRrK{9a5Mx4<8NV6^p{bz0kyQ8EH~G%HJ`JAzTIHiCv=lu5#kp
+zk4R`Uq}~mzpNXF1$)4<3S$;C8SBCgABq3pb9_?GCtsi%HM(oUSW5kZDqnU8Qi0WWA
+zN!g3WOxleh%I&0aVlTF%J>@p8gIT(AI~X%Zo7;5NJ`L+=Z>Crr-qB3?H>!hKhVm~N
+zGbwC3E*Z*RI%X}CG2>9SC!4jwQ6WYSg+=RQRgX)1!+F6rv*MN7s%j%gQ7A0Ct5>hi
+znFqU!sIeiMe?^}8v6IHAu%kPe-J`;e2{y~n_S~4MG>h8|ZI7!mjp|N>qXLd4)A*Z2
+zJb@v(Ix;!vrERwIQHCeR%8q73|5tlg165aXtq%z?G)2W#tfWQXHKNd#ggO6zbIySP
+zkywl*A%;{m5bjN&Awap15T#0#CRAzVDOH-%N>XfzVkIqBs<e_8m8R5COAJP8&=QRm
+zE5@|N6!m>`f0D~J(dT<z>$%?QSqyV#_WbUd{mq_p&fUY}8W9&V-V%#r_7{JJ0T1L=
+zSR9uV!BxyfT%fPONp1?!zA)HQoEO2x%|m!yz{*TT1lP#u8`hV&z5X^fBChImoc|$d
+zT?ALa;wrtBMG1t*Emwdz`~~BDZD;Y}*8<oFL^3XW@oCHmO~YsmLoml<f@y0$A}u$5
+zI&J$$q)iQ^#gKDDACY!D(z3Qyz-R5cDG(lFKg+~5h5QVYBGd8BMV4O&V`~wk1#ytc
+z&C(Qq`d~hS^sN3=_#?>2^0GXQXUJO{$P4qpzIAOV;0MDG@cy!c;o&g)<-*zNCqbJp
+z&TQLYplze@gZ*M{V`~rdL;KYxaWTPqM?&iTy$V}_a4db09^USsE%VcB;NJ=tOxF=o
+z4$D88;ZK(d{~EYpy3qP=1xjxBA?4}%Lg~5bT+H=wsjR@jb#Erjmj~(!`av2SYv$TB
+zpyy(~vN7()J&Wsy5AW2);@A~zS7<-?T+PKi1jp#Xu}{wQ&lwGVaNOBi%+dtg!RAZ@
+z+RNgC<%W;zk#&Chc%TpA^rh?lbRK>h+}X<6U;5$oe16l}>j8wsB*BHYGnDTvzPkFu
+z>D#J4oc{7h&=-c4AI^u%zxm<iKX=<qdU$>fHnUhif_&}{@H@y)4aev*dN3TG|Bj}a
+z^l<*9+&h#0f&4pX(%B*Nq4nXg-Wm1d(7PG*?g#vImS+d<gY68Rr;OJ0;LLKu+wrM~
+zXVSyl@y|zQ(!<M7>77XrFaPO*ne<RTJ%0#xJK<P6gK|_Kz|3H{8DWO0ZSaGb%H%e9
+z&+;;TlKEhfk4H?-x-RgSn|%gaK>+8OP8ptWGLVnO2d}=s{)=LLX1KuWXD$h00;j<>
+zeF6J^Y__k&{Yp57G=8mcksEeIVFMBh;#xdO!0UbgeMuP}8dM;mZ{24;yE2%);Yt5}
+z`2T;~V)mo*A0t<l6&IGdOFiz)pxNRjC8fS+F!x8oRPR~IeGwt{q5@|4`XX~Zm77Y+
+zV3hHcWxmMSOTB?WdF2uhvkL^G$BT^s_v6{it38!lb3BzW>j>+LMV|EXYBrYKz7LiT
+zYgA8$#OC^JDk75GItwjXxz!89Ke;8FJZWBZz{BpiS7)8JExa<j#9NgGGmO~aEcIr1
+z)>UuV;HeC@q{vrBRUr(GRxB-BU%r})V=-5kyQ@n*Sw05gQ^CJ*nPo-gZck3RZ^m(Z
+zXRjzM@p?{ij^qA{8qt1Of86MCFDb3|7W?YuX0g(;Vg5F=vXVVG^D^FsgySMtRF$qO
+z+fq{I=KhLWP)3+BWSk{CJKIyZIowDx$Nd3TjhJc2@C<(r>3tY2t<1f$qNL2nZSKj)
+z+*8(^pJw-Hs^4n!01KV6*ZdR<`7AuIi(p=M$vPOD+{$ILzOf-rbGtFHcphla&Mq&+
+zOCBFRvj&`-9}#M<@uG0v`qF&nbSxXeWiTd|hNnZbuZDfvlEquAU|MW-iQAK2Tv*9n
+zFeiAMTYiep9hijyuJARH`<?GT&1a-~;q2_wcFWM3MG;HD=yaI5^>Cu^en|;zO|V)s
+zYfxvpFK!vOlPoHYn}-<#j+D65+2F%68duC_Vp@6*$EmE<*JNJJ?kj!sGlxweZoBWk
+zd=sWMI8laDc7(;O<_@!%%re-wEiYp`W4~cFFIrgW<M5eCR|UBZPP5)(pUq-cR=NGt
+z6z8C@QhhQ2yP{l)pUSKRGdrUwd)UXBm9V$XanJhhS9tt<+QDXJNJ*E^Sq+Qa9#$5&
+zI>I-d+5O_`_3N>(=eV8z9+i2^OFgXrogra}4$9xaN@RHgBEyWvt>Ao|4>UKyUq?FZ
+z52KXT+<s=GD@4Zb<kDe0)!&HK+?O*~EX&Lm1>Z^#4(gxq@ZR}PWGs6n_3_}^>PO(y
+zjSj{KV?yo3vpBX+vNUW>W_#y|S?m|*(7~~&7u>q_)=OCc*N=|){ayF_{cZP+O|!ey
+zo9ldj2h#8R;o%>;{NxY(-}atADmCCg^50CK7D)edq(88GeD~+Lqq~poW?wqbyiS#W
+z^DbYG<#TZA*x?%vySTN7zk2wC+v0719C>l<9ggE~4(6O$-p3Ecob~dT<vQ#2@$32o
+z=Qz7P9e<<GZtvw2+^K&>)6P0QV*I6_b$Yn|6}A80m+}8&V&ts!?@0=xPCu&;#oW;Q
+zP@Zeo`tt?j{<q;^Iaopi^9S#n=i!}AG;I9MIURQ@UEro>6@CwdKBR{e5RP!+-~Zs6
+z<?=tb`M6nGKDPdRoQv(F7a;?4>^cFy=CAu`cT3=!Liz%vKbs5g)BUC6IZ8|L&hNJc
+z-kU9Q(yqmsFl%8rzq}|FXH%r6a-lT;X)bF$OfwIVXVBR(3~NiE(}m^pmC5X{<Hhxs
+zwf<7hl%J(L_0IN8^_OobDVkaRjQY!~tJapUUt3vNw!w3z^25uX$%TK1J}DgFOYsvz
+zxL-qOZ-avkdEY&3%KLoSoA>#!KhMDqJqLUA9Qz?2?9($l^&D*0a~t4b!=8gJdtX{s
+z7Hr&euyxPD?me@C&+WvIGu}cR&Q;>>`wsHl!*Q>`_1+D?7kkhBC=*P11&;X>0iV71
+zVBtsrBlG9Me+~X$;39B83+^+xXD?2!gv0A3e1D1)qT$$!9;WHxRf*5Bhdb>3%N)3K
+z;MO4i-&ZIH@LmZ)xVq3-hRzIU$r<9A9kMLY*n6a}gQwvab!s-1;y{l|FV0S~68S|W
+z(dA*!E3oym5?AFeS*RttaDq&kyAU6Ac&x;&9&e&!pF5A@lnGcxF5T)v0cBn*5vQ0K
+z-lAg9rb6#R9Kcao?k!(mwXmpslTqm1v}iM*h|^cfO4j3`nQKF9Ls2dl#o;sFDz*g<
+zl(yg_N)s3O@*$_!Q&f%p=GH(MF_oUL!Qgb2$DLDIvKhO`4Ib|)VkkMY23gsWQQ4l&
+zo>H98h5uG!p?7K7=JJi6%0yRnNm>y*DZ)xzUs&q(B)U>gl|xg`UJFf`(I%R5s&mLr
+zQ-XX$Abc>+6pq0=NW@=6bW%>5$%Et|`3DhsoBs;Gj<4ju&VQHR#XrH1@bB|+!V+PX
+z&?-D6^a%sPQ{qAKbJCY2TUsJLCmogI<jZ77zEZwUUN7G&-!4C@B&oW#RNJoIt39Co
+zR2$U(q)lp5+PV5AI<M>cE`7f~U>rB!HRsbysYTPRxwhqWIcSUv-&VoP6TT+gF6=>F
+zuL|dgE-^>ESJ|R()1NdB82$Dd=WEUur_p)P+3(<cPfX5O%s-QKkVE8E@*X*#ck!2_
+zAL)D!|9$>3zMp@VALrlURbi<xTU5k)@mpexc%S%$_@wwd@ekr5@lWEo__}ypd`IM@
+zxzc&kXQfM|D<nZOrBw7WNBWBNRq00QcIj@ZOB#@#kzSO}my=~%UM@c@S1LbLjw^H2
+zI5k0))J%1wTBq(%zop)%?osDzv6`u+Yx&we+FtFK;KV`gW$glezMi0eQ71ap7waDV
+z9zD${FurQsWb81SjPDqa8-2!6<1OPnGsnEa+-laF(ey%kF?CZfy^(g&U(l!MALwEF
+z2JN<<wvJkFTf3YQ=ZG`z9CIcd-xo=#KAGi~kUK~d#<qpDl79#-Vwd=H@mJ!F@?L$e
+z@qjs--bG)cb8Ij?2j48fbCX9%3jbsNVSXR~IU!SUiPd5Qc(M=UJc)6>0=>RcE|+hU
+z@00h)Ka=;#qw*W_O2w=EQaPv`Rx;HrZH<;`EH{eH|1=*me{a5EzHA;d=hDy6Yv@|K
+znchr0Xg~cUJ%ZMsZ~cdrV12>LvDR2OSVh(j>u#&X`o6W#`n~n6b;x?pnrEMH$J!Zo
+zw!Pdgv^UyK_HO$pc8|T^K44GS%bn|;gU*}Il*1L^y#U&O8M%P}JfFm0$8YkD{FA&S
+zn8H;;zEFeN`>611jK3=0Al8We;*@lroGDk!_3}=+OMY5@Mm~(b9GBmdXDhMF&B`~F
+zdzCijm~v8?rADh4s#mC*x>CJG?Ny&r2i0d)OIxDdqTR0DV*J#2)cBM6H**2z^3`+&
+z&8LO5ly0GS&{0~4KJB)CW5wHv_GbIr_K02Pe8XWsyd#*iv&ofY4Y?B|w2M4Mo+8ha
+zXtdwO^SsJ0=C9&cp(pG4QvOE1oBsv>JpUqOF<xjF9uRs3ybBf=iaW(NaYTGcd`(Q1
+znlMgpNmSO9Y-K>%rZ%Wu>VEYl^_Y6Gwg~dLN?Wg$Ywg-2+5v4uJF2~jnYcht(X;ew
+zy;k3$e@AcCck92@`}GlhOpiB`jdbJ7Mx}9wvD5gG(QQ0u95dcFri^!uICFt%n@i1Q
+z=1Q~7tTCI-`^<K8kJ)cNWBvu4IBC9bUQ82dI$cIr(mcAAev{shnfnNR4C8)*wb0Tm
+z%UWy|Shrc<w!UX|S&v%>tYPbU>z~%A>^Pg+%j~b%l^E@V_Axd;>!72+Gx;%ou23m_
+zSJ*Aa1A#2*8fl~SO~_@tv`6|CdOsz-FP$U1<P=$#m&iGCf!rfc%AZy))~?bvY8Bc|
+z+MU`?$l^=d-?d2nT*%*6{bBvrdalu6JZzjaE}@svFVIC8y`8j=zD!H33hPFz$@;DJ
+zjumTPV{f-x>}Tw^>@Pdl0fWBh9B@uD+-maAzj%^P3P~w>jZ6Yd-y@&qv-vd`K`(zh
+zzg&1mI3&C&M2L&Te6a}#v{(EMPTxHwzA2s~?UD{j$+9A^k&EOu`7!yo@*(-p@|*Iz
+z^0~?aMOX5bElRy|7iQ#x%09^2i^^-t+sZr2x$1oNe)YJzUlaA~^+x@;{v{*LSZ5qI
+zE;ZXAf3KPs(Ls8%^`JFkebK%i98Cp!GG;RDj~CVnuM6)Ad19w1p#CHBQ8`1oN|{j3
+zQJ1Kz)FNP6gSuDkQHRwRP)iiB>?-i@C)%_Yqra}tGtM`rjf>3$(*RaoZ>}>d%r`Lh
+z7l4a0y^^k>8|l~Sopcxd8GVwzLZ|3FE8bdU-DKZp|J?qaJ!-FWYMdTt*m>Jw0^ET%
+zT}B=z&yczNB3|d0@_qb2_|FQ-f`awOE4(axT9m{U;t-H}0oI?VrN2p6$crJxcgfwd
+zsNAWfs6S9U)W55XwOh3}w7Gh$o}m}(UcFAgOFyi?t#2_Jfv`WoOg?VJn@^Y>^ild8
+z{VUb2G;67~97wdqy2X0Qdc%sa&$Z{<x?N{KVE+_&bHsk#KFQ`{pPzT<5r=FeJy<ng
+zBPU22|6862M};-wW^udtf;cKoNbgE><O_kBjq<(nZn;C=E59vYqNFR=DAy@v%D0pr
+zWk|VDy;NPO>T0%Hp-!r+fhS42t+(h0^&|R8y~rpr%8V-G8^#O98^-%axjAHhiGG*%
+z(ATJK*En}Odz>enryXtx-{+udF7Yx+k{(m~lu_kc^*VKvdI#2_`_;F!^YoXE_l!t-
+z5ymB*zGWrZDYj&5khE0$9{UA*%pQlNO|brr`Sd_;1;1VRn<z_e>2aVx;wSN2OJG(M
+zAIHZ7qmp^TOITrZ`8+<KFW}vL4PVRG@%4NI-^e%d&3p^r%D3?yd?()p{OaL{p-YTH
+zf@6g^Azp9^nn=Y|F+<D}v$4YGig}QW0?{oNi=|?PSOt`>73;8CH;9dpmu5&zE6}c8
+z?7(d861&A7u~+N^k`IW3m=VLk!BKGxEBP^TLYx#&h*RP;)~-k?N{W_Zq*y6VikDnc
+zf|MjBO9Xt<B#QMtL&}n}vBu|0c~ZVqfc_RsrBa1dCDll^Qk_&UHAs!X)@G?iYL(i6
+zG#yeW^nh-uN9vXOq<*QuEXKUA0uI)iby%$%%tjz$i`fbZY&Sd1PP5DG1vU<tgBZVI
+zbHp4q$INl8ixcLgdBU7Br%jGV(kL2DV`wamqw&;56DW8N{ks@E&%+8<Ah?Aod0OU_
+zNF_>%R${P9#VPTMOG!|Ylw^e{lA<Y8NmVkGEUW-IO0JRz+$d1oO0iO^R47$SjZ&-B
+z0Y@5?Mx{w<R$7!+AWEmwrF3I9_F~@jW91mcyc||WFo(vJajbw7%A|5anNp?|PK{Kf
+zuo}jwvCwzoRTp%gBsEzj(0nwNs;O#*nuWQXqvoo4s@p2Hs;pY8-fFa(tyZhu>a@D8
+zUaQ|41lEsQ<JN?A!kV@s?P#p>@pgipj5$et>wT`BZ@cYMyUMP$>+MFn*>1Jl?M}Pf
+z?zQ{vL3<e3F^>6q!k)GxooFZ4iFXp5WJhwSli_4LxlX?0c1oQpr`D;5uGs9fI_*xU
+z)9v&+{mvi|XB7I<gmc1~X84USg&M%;ND@tANjym)$wVTQWRPr<OY(^um|jI{Nj+)A
+zTHQ+8Nhj$hy`-NEl3_AR#>oUQV46ho(R?hVBLUJO@s!U1{^vqE+*re_ARYCPjAlqh
+zJ7l7p?}cVM2&ou_b~?eI;HUXWAzFxqY$O2jB!LPULbi~Lv3ColLX}V})C-M5Gc=iY
+zp;PFF4$v<Q3d6#vFfL38CxmGsQj8X3#dtA6Oa@L;$W}JwDjzac3VEu9EHy%oS|LN7
+zke^=2&LHGw6f!dbd6^a?At|wtk_1SI1nJ0tWaL6B+>nSWNJ9fOuok<`?y$R{h4tA3
+z_7F6hF(AjJJ!NxFloR8`IW8y3A&%yxI$2JRljjsT#ZCoqzRqcInw%D=&FO%)-{bV*
+z*L*|JT*sidPBJYH02aa3VjMUUMPf)CagiiKh(=OL7Re!bq<|EY3Q|MrNCWiR7SaZt
+zzY7@LM+V3c86jij7*^gX!tqgj3~<T?U6Ak^pUP(esq%nQ#e4;Dsty>{1bkxX)CFYf
+z;|KU5pwk$CjGyGEcut5CVt`UEAxR*DCZq~kLXMCJ87vkmpi9;X4MLO9BD4t|LYL6v
+z+Z7E7Bf^+)Oqdj=pqWL9F=8BcE=eL0HK1G;5H1hsRt#jT0jf3lG=Mf>Sr>4u4;VHC
+z{2BvxO#-(#U{(z9$_1<<z^PPVR1WZ|0N7LkT&e>mH35&>fJI%vp+4+NhNKZ`OgaWV
+zeM;iwC^<%sgC3M56Iqi}<t*qzdC-Q6<qEk*u9F+&Cb<Qg#_i6xox7ZS81JEw;&BWo
+zVONr&XY09ozV6mb^(yFw_0TMup&hpCoqD(43k`8lAJ#|paeYERp-=0PMzj%YBvV2)
+zXnXn4ek*7dt)<Ph9r}I`?S(GY4?Sd@o`4PzWkp-DR<cE{ROtS>R-Tn_xq%an(6icr
+z5*^S72Y?adK!+*dLo75xKRRUCxptmiY}eQgz=S5CLJKefjZTf=hFKRdO8JnJ28>Jh
+z49Q?45|j(J?qpyzYOtcPRm9JIwtkF33fNk~cusx%cKg-<hWlO8u#dm7r}!$#6kM(F
+zak3S9=7@Yko|5B$!g)a279i>fP%{q5n5WjLEo!^kr{XJ1&84McM_8a0Lm#ct>a+%}
+zQESp#v{vZmJzAeOtc_y7%)SNAL!a1qb)fVClz$B9??--y_Gd!la3ro!8`Vy=U!72+
+NwPY<@LxF+ozW{Bx6X^f|
+
+literal 0
+HcmV?d00001
+
+diff --git a/osu!/Audio/AudioEngine.cs b/osu!/Audio/AudioEngine.cs
+index 6b3d4b3..613506a 100644
+--- a/osu!/Audio/AudioEngine.cs
++++ b/osu!/Audio/AudioEngine.cs
+@@ -720,49 +720,56 @@ namespace osu.Audio
+ 
+                 bool skipInterpolation = AudioState != AudioStates.Playing || audioTime == 0 || sourceTime == 0 || Player.Failed;
+ 
+-                if (!skipInterpolation)
+-                //try and interpolate time for added smoothness (vista+ has a precision of 10ms using directsound)
++                if (ConfigManager.sForceFramerate)
+                 {
+-                    double proposedTime = audioTime + increase;
+-                    double diff = proposedTime - sourceTime;
++                    audioTime += increase;
++                }
++                else
++                {
++                    if (!skipInterpolation)
++                    //try and interpolate time for added smoothness (vista+ has a precision of 10ms using directsound)
++                    {
++                        double proposedTime = audioTime + increase;
++                        double diff = proposedTime - sourceTime;
+ 
+-                    proposedTime -= diff / 8; //approach sourceTime slowly to keep as close as possible.
++                        proposedTime -= diff / 8; //approach sourceTime slowly to keep as close as possible.
+ 
+-                    diff = proposedTime - sourceTime;
++                        diff = proposedTime - sourceTime;
+ 
+-                    double aimDiff = (GameBase.Time - lastAudioTimeAccurateSet < 1500 || CurrentPlaybackRate < 100 ? 11 : 33);
++                        double aimDiff = (GameBase.Time - lastAudioTimeAccurateSet < 1500 || CurrentPlaybackRate < 100 ? 11 : 33);
+ 
+-                    if (Math.Abs(diff) > aimDiff * 2)
+-                    {
+-                        //hard upper limit where we just ignore interpolation and get back in sync.
+-                        skipInterpolation = true;
+-                        if (AudioFrequency == InitialFrequency && !GameBase.CanRunSlowly) Debug.Print("Audio interpolation lenience exceeded; using audio timing.");
+-                    }
+-                    else if (diff < -aimDiff)
+-                    {
+-                        //running too far behind. move forward by double the amount until we are back in time.
+-                        audioTime += increase * 2;
+-                        lastAudioTimeAccurateSet = GameBase.Time;
+-                    }
+-                    else if (diff < aimDiff)
+-                    {
+-                        //carry on using interpolated calculations assuming we aren't too far ahead.
+-                        //this is the normal path of execution when everything is going smoothly.
+-                        audioTime = proposedTime;
++                        if (Math.Abs(diff) > aimDiff * 2)
++                        {
++                            //hard upper limit where we just ignore interpolation and get back in sync.
++                            skipInterpolation = true;
++                            if (AudioFrequency == InitialFrequency && !GameBase.CanRunSlowly) Debug.Print("Audio interpolation lenience exceeded; using audio timing.");
++                        }
++                        else if (diff < -aimDiff)
++                        {
++                            //running too far behind. move forward by double the amount until we are back in time.
++                            audioTime += increase * 2;
++                            lastAudioTimeAccurateSet = GameBase.Time;
++                        }
++                        else if (diff < aimDiff)
++                        {
++                            //carry on using interpolated calculations assuming we aren't too far ahead.
++                            //this is the normal path of execution when everything is going smoothly.
++                            audioTime = proposedTime;
++                        }
++                        else
++                        {
++                            //running too far ahead. move forward by half the amount until we are back in time.
++                            audioTime += increase / 2;
++                            lastAudioTimeAccurateSet = GameBase.Time;
++                        }
+                     }
+-                    else
++
++                    if (skipInterpolation)
+                     {
+-                        //running too far ahead. move forward by half the amount until we are back in time.
+-                        audioTime += increase / 2;
++                        audioTime = sourceTime;
+                         lastAudioTimeAccurateSet = GameBase.Time;
+                     }
+                 }
+-
+-                if (skipInterpolation)
+-                {
+-                    audioTime = sourceTime;
+-                    lastAudioTimeAccurateSet = GameBase.Time;
+-                }
+             }
+             else
+                 audioTime = 0;
+@@ -788,6 +795,9 @@ namespace osu.Audio
+             else
+                 Time = TimeRaw;
+ 
++            if (ConfigManager.sForceFramerate)
++                AudioTrack.Seek(Time);
++
+             TimeUnedited = Time;
+         }
+ 
+diff --git a/osu!/Configuration/ConfigManager.cs b/osu!/Configuration/ConfigManager.cs
+index 395fc76..1d985fe 100644
+--- a/osu!/Configuration/ConfigManager.cs
++++ b/osu!/Configuration/ConfigManager.cs
+@@ -192,6 +192,15 @@ namespace osu.Configuration
+ 
+         internal static BindableBool sCompatibilityContext;
+ 
++        internal static BindableBool sAutoPlus;
++        internal static Bindable<AutoPlusType> sAutoPlusType;
++        internal static Bindable<AutoPlusVersion> sAutoPlusVersion;
++        internal static BindableBool sAutoPlusSaveReplayBeforePlaying;
++        internal static BindableBool sForceFramerate;
++        internal static BindableBool sSynchronousLog;
++        internal static BindableBool sTrailNoFrameSkip;
++        internal static BindableBool sTrailSmooth;
++
+         internal static BindableBool dNoAsyncReads;
+         internal static BindableBool dDisableGCLowLatency;
+         internal static BindableBool dDisableBackgroundSaves;
+@@ -768,6 +777,15 @@ namespace osu.Configuration
+ 
+             sCompatibilityContext = ReadBool(@"CompatibilityContext", false);
+ 
++            sAutoPlus = ReadBool(@"Auto+", true);
++            sAutoPlusType = ReadValue<AutoPlusType>(@"Auto+Type", AutoPlusType.Normal);
++            sAutoPlusVersion = ReadValue<AutoPlusVersion>(@"Auto+Version", AutoPlusVersion.v06);
++            sAutoPlusSaveReplayBeforePlaying = ReadBool(@"Auto+SaveReplayBeforePlaying", false);
++            sForceFramerate = new BindableBool();
++            sSynchronousLog = ReadBool(@"SynchronousLog", false);
++            sTrailNoFrameSkip = ReadBool(@"TrailNoFrameSkip", true);
++            sTrailSmooth = ReadBool(@"TrailSmooth", true);
++
+             initializeOverrides();
+ 
+             BindingManager.Initialize();
+diff --git a/osu!/Constants/General.cs b/osu!/Constants/General.cs
+index 0725fc6..693f524 100644
+--- a/osu!/Constants/General.cs
++++ b/osu!/Constants/General.cs
+@@ -14,23 +14,24 @@ namespace osu
+ 
+         internal static int VERSION_FIRST_OSZ2 = 20121008;
+ 
+-#if ARCADE
+-        internal static string SUBVERSION = @"arcade";
+-#elif Beta
+-        internal static string SUBVERSION = @"beta";
+-#elif Release
+-        internal static string SUBVERSION = @"cuttingedge";
+-#elif DEBUG
+-        internal static string SUBVERSION = @"dev";
+-#elif PublicNoUpdate
+-        internal static string SUBVERSION = @"public_test";
+-#else
+-        internal static string SUBVERSION = @"noxna";
+-#endif
++//#if ARCADE
++//        internal static string SUBVERSION = @"arcade";
++//#elif Beta
++//        internal static string SUBVERSION = @"beta";
++//#elif Release
++//        internal static string SUBVERSION = @"cuttingedge";
++//#elif DEBUG
++//        internal static string SUBVERSION = @"dev";
++//#elif PublicNoUpdate
++//        internal static string SUBVERSION = @"public_test";
++//#else
++//        internal static string SUBVERSION = @"noxna";
++//#endif
++        internal static string SUBVERSION = @"auto+";
+ 
+         internal static string BUILD_NAME { get { return @"b" + FULL_VERSION + SUBVERSION; } }
+ 
+-        internal static string FULL_VERSION { get { return VERSION + (internal_version > 0 ? @"." + internal_version : string.Empty); } }
++        internal static string FULL_VERSION { get { return autoplus_version + (internal_version > 0 ? @"." + internal_version : string.Empty); } }
+ 
+         /// <summary>
+         /// Version string visible in window title.
+diff --git a/osu!/Constants/General_Version.cs b/osu!/Constants/General_Version.cs
+new file mode 100644
+index 0000000..d61252c
+--- /dev/null
++++ b/osu!/Constants/General_Version.cs
+@@ -0,0 +1,17 @@
++using System;
++using System.Collections.Generic;
++using System.Text;
++
++namespace osu
++{
++    /// <summary>
++    /// Contains only the version number. This is used by osu!Builder to build specific versions.
++    /// It should be updated when necessary to support client-side database fallback support.
++    /// </summary>
++    internal static partial class General
++    {
++        internal static int VERSION = 20161122;
++        internal static int autoplus_version = 0;
++        internal static int internal_version = 6;
++    }
++}
+diff --git a/osu!/GameBase.cs b/osu!/GameBase.cs
+index 3ff43c3..03e9387 100644
+--- a/osu!/GameBase.cs
++++ b/osu!/GameBase.cs
+@@ -1848,6 +1848,10 @@ namespace osu
+                 SixtyFramesPerSecondFrame = false;
+ 
+             ElapsedMilliseconds = TimeAccurate - TimeAccurateLastUpdate;
++
++            if (ConfigManager.sForceFramerate)
++                ElapsedMilliseconds = 1000.0 / 1000;
++
+             FrameRatio = ElapsedMilliseconds / FrameAimTime;
+             ModeTime += ElapsedMilliseconds;
+             PerformanceMonitor.EndCollecting(FrameTimeType.Sleep);
+@@ -3365,5 +3369,16 @@ namespace osu
+         Custom = 5
+     };
+ 
++    public enum AutoPlusType
++    {
++        Normal = 0,
++        FollowSliders = 1,
++        Interpolate = 2
++    };
+ 
++    public enum AutoPlusVersion
++    {
++        v05 = 0,
++        v06 = 1
++    }
+ }
+diff --git a/osu!/GameModes/Menus/Menu.cs b/osu!/GameModes/Menus/Menu.cs
+index 1d5ab31..a5d37ca 100644
+--- a/osu!/GameModes/Menus/Menu.cs
++++ b/osu!/GameModes/Menus/Menu.cs
+@@ -178,18 +178,18 @@ namespace osu.GameModes.Menus
+                     //download bundled maps.
+                     if (BeatmapManager.Beatmaps.Count == 0 && (Directory.GetFiles(BeatmapManager.SongsDirectory).Length + Directory.GetDirectories(BeatmapManager.SongsDirectory).Length) < 6)
+                     {
+-#if DEBUG
+-                        OsuDirect.StartDownload(new OsuDirectDownload(377549, @"377549 peppy - Test Suite.osz", @"test suite"));
+-#else
+-                        OsuDirect.StartDownload(new OsuDirectDownload(3756, @"3756 Peter Lambert - osu! tutorial.osz", @"osu! tutorial"));
+-                        OsuDirect.StartDownload(new OsuDirectDownload(163112, @"163112 Kuba Oms - My Love.osz", @"Bundled map #1"));
+-                        OsuDirect.StartDownload(new OsuDirectDownload(140662, @"140662 cYsmix feat. Emmy - Tear Rain.osz", @"Bundled map #2"));
+-                        OsuDirect.StartDownload(new OsuDirectDownload(151878, @"151878 Chasers - Lost.osz", @"Bundled map #3"));
+-                        OsuDirect.StartDownload(new OsuDirectDownload(190390, @"190390 Rameses B - Flaklypa.osz", @"Bundled map #4"));
+-                        OsuDirect.StartDownload(new OsuDirectDownload(123593, @"123593 Rostik - Liquid (Paul Rosenthal Remix).osz", @"Bundled map #5"));
+-                        OsuDirect.StartDownload(new OsuDirectDownload(241526, @"241526 Soleily - Renatus.osz", @"Bundled map #6"));
+-                        OsuDirect.StartDownload(new OsuDirectDownload(299224, @"299224 raja - the light.osz", @"Bundled map #7"));
+-#endif
++//#if DEBUG
++//                        OsuDirect.StartDownload(new OsuDirectDownload(377549, @"377549 peppy - Test Suite.osz", @"test suite"));
++//#else
++//                        OsuDirect.StartDownload(new OsuDirectDownload(3756, @"3756 Peter Lambert - osu! tutorial.osz", @"osu! tutorial"));
++//                        OsuDirect.StartDownload(new OsuDirectDownload(163112, @"163112 Kuba Oms - My Love.osz", @"Bundled map #1"));
++//                        OsuDirect.StartDownload(new OsuDirectDownload(140662, @"140662 cYsmix feat. Emmy - Tear Rain.osz", @"Bundled map #2"));
++//                        OsuDirect.StartDownload(new OsuDirectDownload(151878, @"151878 Chasers - Lost.osz", @"Bundled map #3"));
++//                        OsuDirect.StartDownload(new OsuDirectDownload(190390, @"190390 Rameses B - Flaklypa.osz", @"Bundled map #4"));
++//                        OsuDirect.StartDownload(new OsuDirectDownload(123593, @"123593 Rostik - Liquid (Paul Rosenthal Remix).osz", @"Bundled map #5"));
++//                        OsuDirect.StartDownload(new OsuDirectDownload(241526, @"241526 Soleily - Renatus.osz", @"Bundled map #6"));
++//                        OsuDirect.StartDownload(new OsuDirectDownload(299224, @"299224 raja - the light.osz", @"Bundled map #7"));
++//#endif
+                     }
+                 }
+                 catch { }
+diff --git a/osu!/GameModes/Options/OptionDropdown.cs b/osu!/GameModes/Options/OptionDropdown.cs
+index 638b06e..7659c86 100644
+--- a/osu!/GameModes/Options/OptionDropdown.cs
++++ b/osu!/GameModes/Options/OptionDropdown.cs
+@@ -17,13 +17,19 @@ namespace osu.GameModes.Options
+         HasObjectValue binding;
+ 
+         public OptionDropdown(OsuString title, IEnumerable<pDropdownItem> items = null, HasObjectValue binding = null, EventHandler onChange = null)
++            : this(LocalisationManager.GetString(title), items, binding, onChange)
++        {
++            addKeyword(title.ToString());
++        }
++
++        public OptionDropdown(string title, IEnumerable<pDropdownItem> items = null, HasObjectValue binding = null, EventHandler onChange = null)
+         {
+             this.binding = binding;
+ 
+             ValueChangedObservable changeObservation = binding as ValueChangedObservable;
+             if (changeObservation != null) changeObservation.ValueChanged += changeObservation_ValueChanged;
+ 
+-            string text = LocalisationManager.GetString(title);
++            string text = title;
+             pText header = new pText(text, 12, Vector2.Zero, 1, true, Color.White);
+             spriteManager.Add(header);
+ 
+@@ -49,7 +55,6 @@ namespace osu.GameModes.Options
+ 
+ 
+             addKeyword(text);
+-            addKeyword(title.ToString());
+         }
+ 
+         void changeObservation_ValueChanged(object sender, EventArgs e)
+diff --git a/osu!/GameModes/Options/Options.cs b/osu!/GameModes/Options/Options.cs
+index 23d9505..ed5b025 100644
+--- a/osu!/GameModes/Options/Options.cs
++++ b/osu!/GameModes/Options/Options.cs
+@@ -866,6 +866,32 @@ namespace osu.GameModes.Options
+                             new OptionButton(OsuString.Options_RunUpdater, SkinManager.NEW_SKIN_COLOUR_SECONDARY, runUpdater),
+                         }
+                     },
++
++                    new OptionSection(@"Auto+")
++                    {
++                        Children = new OptionElement[]
++                        {
++                            new OptionCheckbox(@"Enable Auto+", @"Replace standard osu! Auto with Auto+.", ConfigManager.sAutoPlus),
++                            new OptionDropdown(@"Auto+ type", new pDropdownItem[]
++                            {
++                                new pDropdownItem(@"Normal", AutoPlusType.Normal),
++                                new pDropdownItem(@"Follow sliders", AutoPlusType.FollowSliders),
++                                new pDropdownItem(@"Interpolate", AutoPlusType.Interpolate)
++                            }, ConfigManager.sAutoPlusType),
++                            new OptionDropdown(@"Algorithm version", new pDropdownItem[]
++                            {
++                                new pDropdownItem(@"v0.5", AutoPlusVersion.v05),
++                                new pDropdownItem(@"v0.6", AutoPlusVersion.v06)
++                            }, ConfigManager.sAutoPlusVersion),
++                            new OptionCheckbox(@"Save Auto+ replay before playback", @"If enabled, saves the generated Auto+ replay right after its generation into a file named replay.osr.", ConfigManager.sAutoPlusSaveReplayBeforePlaying),
++                            new OptionCheckbox(@"Force 1000 FPS", @"If enabled, makes osu! run at constant 1000 FPS.", ConfigManager.sForceFramerate),
++                            new OptionCheckbox(@"Write to log synchronously", @"If enabled, makes osu! write into the log synchronously. This results in a proper line order in the logs, but also in severe frame drops.", ConfigManager.sSynchronousLog, delegate {
++                                Logger.SynchronousLog = ConfigManager.sSynchronousLog;
++                            }),
++                            new OptionCheckbox(@"No cursor trail frame skip", @"If enabled, makes the cursor trail not skip replay frames which looks better.", ConfigManager.sTrailNoFrameSkip),
++                            new OptionCheckbox(@"Smooth cursor trail", @"Slightly different, smoother cursor trail.", ConfigManager.sTrailSmooth),
++                        }
++                    },
+ #if DEBUG || Release
+                     new OptionSection(@"Debug") {
+                         Children = debugMenu
+diff --git a/osu!/GameModes/Play/Player.cs b/osu!/GameModes/Play/Player.cs
+index 13d7799..6d1c315 100644
+--- a/osu!/GameModes/Play/Player.cs
++++ b/osu!/GameModes/Play/Player.cs
+@@ -44,6 +44,7 @@ using osu_common.Helpers;
+ using osu.GameModes.Online;
+ using osu.GameModes.Select;
+ using osu.Online.Social;
++using System.Diagnostics;
+ 
+ #endregion
+ 
+@@ -3207,6 +3208,21 @@ namespace osu.GameModes.Play
+                 hitObjectManager.hitObjectsMinimal.Find(
+                     h => h.StartTime != h.EndTime && h.HittableStartTime <= AudioEngine.Time && (h.HittableEndTime >= AudioEngine.Time || !h.IsHit));
+ 
++            //if (ActiveHitObject == null)
++            //{
++            //    Debug.Print("[time = {0}] ActiveHitObject set to null", AudioEngine.Time);
++            //}
++            //else if (ActiveHitObject.IsType(HitObjectType.Slider))
++            //{
++            //    var s = (SliderOsu)ActiveHitObject;
++            //    Debug.Print("[time = {0}] ActiveHitObject set to Slider, StartTime = {1}, EndTime = {2}", AudioEngine.Time, s.StartTime, s.EndTime);
++            //}
++            //else if (ActiveHitObject.IsType(HitObjectType.Spinner))
++            //{
++            //    var s = (SpinnerOsu)ActiveHitObject;
++            //    Debug.Print("[time = {0}] ActiveHitObject set to Spinner, StartTime = {1}, EndTime = {2}", AudioEngine.Time, s.StartTime, s.EndTime);
++            //}
++
+             IsSliding = ActiveHitObject != null && ActiveHitObject.IsType(HitObjectType.Slider);
+             IsSpinning = ActiveHitObject != null && ActiveHitObject.IsType(HitObjectType.Spinner);
+         }
+@@ -3863,6 +3879,7 @@ namespace osu.GameModes.Play
+                                 if (s.HitStart() > 0)
+                                 {
+                                     ActiveHitObject = h;
++                                    Debug.Print("[time = {0}] ActiveHitObject changed to slider, StartTime = {1}, EndTime = {2}", AudioEngine.Time, h.StartTime, h.EndTime);
+                                     Ruleset.IncreaseScoreHit(IncreaseScoreType.SliderRepeat, h);
+                                     forceReplayFrame = true;
+                                     LogHitError(h);
+diff --git a/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs b/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
+index dcc721f..8d3fb99 100644
+--- a/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
++++ b/osu!/GameModes/Play/Rulesets/Osu/RulesetOsu_Autoplay.cs
+@@ -11,11 +11,71 @@ using osu_common.Bancho.Objects;
+ using osu.GameplayElements.Scoring;
+ using Microsoft.Xna.Framework;
+ using System.Diagnostics;
++using System.IO;
++using osu_common.Helpers;
++using System.Runtime.InteropServices;
++using osu.Configuration;
++
++/*
++ * Auto+ changelog.
++ *
++ * v0.2:
++ * - Fixed consequent spinners.
++ *
++ * v0.3:
++ * - Fixed a 1ms error when calculating cantClickCirclesUntil (fixes stuff like sliders and a circle 1ms later).
++ * - When multiple objects start at the same time they aren't considered in the clicking order check between each other. Fixed the code to take this into account instead of an incorrect assumption previously.
++ *
++ * v0.4:
++ * - I forgot what I changed but it was some obvious error. ._. Mfw not using git.
++ * 
++ * Interp:
++ * - Follow the sliders.
++ * - Interpolate with cubic splines.
++ * - Options.
++ * - Removed some network connectivity.
++ * 
++ * v0.6:
++ * - New algorithm.
++ * - Cursor trail improvements.
++ * - Force 1000 FPS setting.
++ * - Synchronous log setting.
++ *
++ */
+ 
+ namespace osu.GameModes.Play.Rulesets.Osu
+ {
+     internal partial class RulesetOsu
+     {
++        [StructLayout(LayoutKind.Sequential)]
++        unsafe struct SplinePoints
++        {
++            public double* ts;
++            public double* xs;
++            public double* ys;
++            public UInt32 n;
++
++            IntPtr private_data;
++        }
++
++        [DllImport("Spline.dll", CallingConvention = CallingConvention.Cdecl)]
++        static extern void spline_interp(double step,
++                                         double d1_x,
++                                         double d1_y,
++                                         double dn_x,
++                                         double dn_y,
++                                         [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 8)]
++                                         double[] ts,
++                                         [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 8)]
++                                         double[] xs,
++                                         [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 8)]
++                                         double[] ys,
++                                         UInt32 n,
++                                         out SplinePoints result);
++
++        [DllImport("Spline.dll", CallingConvention = CallingConvention.Cdecl)]
++        static extern void spline_free(ref SplinePoints spline_points);
++
+         internal class bReplayFrameComparer : IComparer<bReplayFrame>
+         {
+             public int Compare(bReplayFrame f1, bReplayFrame f2)
+@@ -26,6 +86,16 @@ namespace osu.GameModes.Play.Rulesets.Osu
+ 
+         private static IComparer<bReplayFrame> replayFrameComparer = new bReplayFrameComparer();
+ 
++        private class FrameWithTypeComparator : IComparer<FrameWithType>
++        {
++            public int Compare(FrameWithType f1, FrameWithType f2)
++            {
++                return f1.frame.time.CompareTo(f2.frame.time);
++            }
++        }
++
++        private static IComparer<FrameWithType> frameWithTypeComparator = new FrameWithTypeComparator();
++
+         private static int FindInsertionIndex(List<bReplayFrame> replay, bReplayFrame frame)
+         {
+             int index = replay.BinarySearch(frame, replayFrameComparer);
+@@ -45,261 +115,1211 @@ namespace osu.GameModes.Play.Rulesets.Osu
+ 
+             return index;
+         }
++        
++        private static int FindInsertionIndex(List<FrameWithType> frames, FrameWithType frame)
++        {
++            int index = frames.BinarySearch(frame, frameWithTypeComparator);
++
++            if (index < 0)
++            {
++                index = ~index;
++            }
++            else
++            {
++                // Go to the first index which is actually bigger
++                while (index < frames.Count && frame.frame.time == frames[index].frame.time)
++                {
++                    ++index;
++                }
++            }
++
++            return index;
++        }
++
++        private enum ObjectType
++        {
++            CLICK,
++            DRAG,
++            SPIN
++        };
++
++        private struct FrameWithType
++        {
++            public bReplayFrame frame;
++            public ObjectType type;
++
++            // If this frame is clicking / dragging on something related to a slider, this is that slider.
++            public SliderOsu slider;
++
++            public FrameWithType(bReplayFrame frame, ObjectType type, SliderOsu slider = null)
++            {
++                this.frame = frame;
++                this.type = type;
++                this.slider = slider;
++            }
++        };
+ 
+         private static void AddFrameToReplay(List<bReplayFrame> replay, bReplayFrame frame)
+         {
+             replay.Insert(FindInsertionIndex(replay, frame), frame);
+         }
+ 
++        private static void AddFrameWithTypeToReplay(List<FrameWithType> frames, FrameWithType frame)
++        {
++            frames.Insert(FindInsertionIndex(frames, frame), frame);
++        }
++
+         private static Vector2 CirclePosition(float t, float radius)
+         {
+             return new Vector2((float)(Math.Cos(t) * radius), (float)(Math.Sin(t) * radius));
+         }
+ 
+-        internal override void CreateAutoplayReplay()
++        private static Vector2 SliderPositionAtTime(SliderOsu slider, float time)
+         {
+-            int buttonIndex = 0;
++            foreach (Transformation t in slider.sliderFollower.Transformations.FindAll(tr => tr.Type == TransformationType.Movement))
++            {
++                if (t.Time1 <= time && t.Time2 >= time)
++                {
++                    var mul = (time - t.Time1) / (t.Time2 - t.Time1);
++                    return t.StartVector + (t.EndVector - t.StartVector) * mul;
++                }
++            }
+ 
+-            bool delayedMovements = ModManager.CheckActive(Mods.Relax2);
+-            EasingTypes preferredEasing = delayedMovements ? EasingTypes.InOutCubic : EasingTypes.Out;
++            Debug.Assert(false);
++            return new Vector2(0, 0);
++        }
++
++        private static Vector2 SliderDerivativeAtTime(SliderOsu slider, float time)
++        {
++            foreach (Transformation t in slider.sliderFollower.Transformations.FindAll(tr => tr.Type == TransformationType.Movement))
++            {
++                if (t.Time1 != t.Time2 && t.Time1 <= time && t.Time2 >= time)
++                {
++                    return (t.EndVector - t.StartVector) / (t.Time2 - t.Time1);
++                }
++            }
++
++            Debug.Assert(false);
++            return new Vector2(0, 0);
++        }
++
++        private List<HitObject> HitObjectsMinimalAtTime(int time)
++        {
++            // HitObjectManager.UpdateBasic()
++            int hitObjectsCount = hitObjectManager.hitObjects.Count;
++
++            int minimalLeft = time - hitObjectManager.PreEmpt;
++            int minimalRight = time + hitObjectManager.PreEmpt;
++
++            int startIndex = hitObjectManager.hitObjects.BinarySearch(new HitObjectDummy(hitObjectManager, minimalLeft));
++            if (startIndex < 0)
++                startIndex = ~startIndex;
++
++            int endIndex;
++            for (endIndex = startIndex; endIndex < hitObjectsCount - 1; endIndex++)
++                if (hitObjectManager.hitObjects[endIndex].StartTime > minimalRight)
++                    break;
++
++            List<HitObject> hitObjectsMinimal = new List<HitObject>();
++
++            if (startIndex != hitObjectsCount)
++            {
++                hitObjectsMinimal = hitObjectManager.hitObjects.GetRange(startIndex, 1 + endIndex - startIndex);
++            }
+ 
++            return hitObjectsMinimal;
++        }
++
++        private HitObject ActiveHitObjectAtTime(int time)
++        {
++            var hitObjectsMinimal = HitObjectsMinimalAtTime(time);
++
++            // Slider is hit after the frame of HittableEndTime = AudioEngine.Time.
++            // Spinner is hit after the frame of HittableEndTime > AudioEngine.Time.
++            // This is only valid if we hit every slider asap in the end.
++
++            // Problem: sometimes AudioEngine.Time doesn't advance on multiple frames?
++            return hitObjectsMinimal.Find(h => h.StartTime != h.EndTime && h.HittableStartTime <= time
++                && (h.HittableEndTime >= time || (h.IsType(HitObjectType.Slider) && h.HittableEndTime >= time)
++                                              || (h.IsType(HitObjectType.Spinner) && h.HittableEndTime >= time - 1)));
++        }
++
++        private HitObject ActiveHitObjectAtTime(int time, List<HitObject> hitObjectsMinimal)
++        {
++            // Slider is hit after the frame of HittableEndTime = AudioEngine.Time.
++            // Spinner is hit after the frame of HittableEndTime > AudioEngine.Time.
++            // This is only valid if we hit every slider asap in the end.
++
++            // Problem: sometimes AudioEngine.Time doesn't advance on multiple frames?
++            return hitObjectsMinimal.Find(h => h.StartTime != h.EndTime && h.HittableStartTime <= time
++                && (h.HittableEndTime >= time || (h.IsType(HitObjectType.Slider) && h.HittableEndTime >= time)
++                                              || (h.IsType(HitObjectType.Spinner) && h.HittableEndTime >= time - 1)));
++        }
++
++        private struct SpinTime
++        {
++            public int StartTime;
++            public int EndTime;
++
++            public SpinTime(int StartTime, int EndTime)
++            {
++                this.StartTime = StartTime;
++                this.EndTime = EndTime;
++            }
++        }
++
++        internal override void CreateAutoplayReplay()
++        {
+             InputManager.ReplayScore.Replay = new List<bReplayFrame>();
+             List<bReplayFrame> replay = InputManager.ReplayScore.Replay;
+-
+-            AddFrameToReplay(replay, new bReplayFrame(-100000, 256, 500, pButtonState.None));
+-            AddFrameToReplay(replay, new bReplayFrame(hitObjectManager.hitObjects[0].StartTime - 1500, 256, 500, pButtonState.None));
+-            AddFrameToReplay(replay, new bReplayFrame(hitObjectManager.hitObjects[0].StartTime - 1000, 256, 192, pButtonState.None));
++            Vector2 spinnerCentre = new Vector2(256, 192);
+ 
+             // We are using ApplyModsToRate and not ApplyModsToTime to counteract the speed up / slow down from HalfTime / DoubleTime so that we remain at a constant framerate of 60 fps.
+             float frameDelay = (float)HitObjectManager.ApplyModsToRate(1000.0 / 60.0);
+-            Vector2 spinnerCentre = new Vector2(256, 192);
+-            const float spinnerRadius = 50;
+ 
+-            // Already superhuman, but still somewhat realistic
+-            int reactionTime = (int)HitObjectManager.ApplyModsToRate(100);
++            List<FrameWithType> frames = new List<FrameWithType>();
+ 
++            AddFrameToReplay(replay, new bReplayFrame(-100000, 256, 500, pButtonState.None));
++            AddFrameToReplay(replay, new bReplayFrame(hitObjectManager.hitObjects[0].StartTime - 1500, 256, 500, pButtonState.None));
++            AddFrameToReplay(replay, new bReplayFrame(hitObjectManager.hitObjects[0].StartTime - 1000, 256, 192, pButtonState.None));
++
++            bool delayedMovements = ModManager.CheckActive(Mods.Relax2);
+ 
+-            for (int i = 0; i < hitObjectManager.hitObjectsCount; i++)
++            if (delayedMovements || !ConfigManager.sAutoPlus)
+             {
+-                HitObject h = hitObjectManager.hitObjects[i];
++                int buttonIndex = 0;
++                EasingTypes preferredEasing = delayedMovements ? EasingTypes.InOutCubic : EasingTypes.Out;
+ 
+-                if (h.EndTime < InputManager.ReplayStartTime)
+-                {
+-                    h.IsHit = true;
+-                    continue;
+-                }
++                const float spinnerRadius = 50;
+ 
+-                int endDelay = h is SpinnerOsu ? 1 : 0;
++                // Already superhuman, but still somewhat realistic
++                int reactionTime = (int)HitObjectManager.ApplyModsToRate(100);
+ 
+-                if (delayedMovements && i > 0)
++
++                for (int i = 0; i < hitObjectManager.hitObjectsCount; i++)
+                 {
+-                    HitObject last = hitObjectManager.hitObjects[i - 1];
++                    HitObject h = hitObjectManager.hitObjects[i];
+ 
+-                    //Make the cursor stay at a hitObject as long as possible (mainly for autopilot).
+-                    if (h.StartTime - HitObjectManager.HITTABLE_RANGE > last.EndTime + hitObjectManager.HitWindow50 + 50)
++                    if (h.EndTime < InputManager.ReplayStartTime)
+                     {
+-                        if (!(last is Spinner) && h.StartTime - last.EndTime < 1000) AddFrameToReplay(replay, new bReplayFrame(last.EndTime + hitObjectManager.HitWindow50, last.EndPosition.X, last.EndPosition.Y, pButtonState.None));
+-                        if (!(h is Spinner)) AddFrameToReplay(replay, new bReplayFrame(h.StartTime - HitObjectManager.HITTABLE_RANGE, h.Position.X, h.Position.Y, pButtonState.None));
++                        h.IsHit = true;
++                        continue;
+                     }
+-                    else if (h.StartTime - hitObjectManager.HitWindow50 > last.EndTime + hitObjectManager.HitWindow50 + 50)
++
++                    int endDelay = h is SpinnerOsu ? 1 : 0;
++
++                    if (delayedMovements && i > 0)
+                     {
+-                        if (!(last is Spinner) && h.StartTime - last.EndTime < 1000) AddFrameToReplay(replay, new bReplayFrame(last.EndTime + hitObjectManager.HitWindow50, last.EndPosition.X, last.EndPosition.Y, pButtonState.None));
+-                        if (!(h is Spinner)) AddFrameToReplay(replay, new bReplayFrame(h.StartTime - hitObjectManager.HitWindow50, h.Position.X, h.Position.Y, pButtonState.None));
++                        HitObject last = hitObjectManager.hitObjects[i - 1];
++
++                        //Make the cursor stay at a hitObject as long as possible (mainly for autopilot).
++                        if (h.StartTime - HitObjectManager.HITTABLE_RANGE > last.EndTime + hitObjectManager.HitWindow50 + 50)
++                        {
++                            if (!(last is Spinner) && h.StartTime - last.EndTime < 1000) AddFrameToReplay(replay, new bReplayFrame(last.EndTime + hitObjectManager.HitWindow50, last.EndPosition.X, last.EndPosition.Y, pButtonState.None));
++                            if (!(h is Spinner)) AddFrameToReplay(replay, new bReplayFrame(h.StartTime - HitObjectManager.HITTABLE_RANGE, h.Position.X, h.Position.Y, pButtonState.None));
++                        }
++                        else if (h.StartTime - hitObjectManager.HitWindow50 > last.EndTime + hitObjectManager.HitWindow50 + 50)
++                        {
++                            if (!(last is Spinner) && h.StartTime - last.EndTime < 1000) AddFrameToReplay(replay, new bReplayFrame(last.EndTime + hitObjectManager.HitWindow50, last.EndPosition.X, last.EndPosition.Y, pButtonState.None));
++                            if (!(h is Spinner)) AddFrameToReplay(replay, new bReplayFrame(h.StartTime - hitObjectManager.HitWindow50, h.Position.X, h.Position.Y, pButtonState.None));
++                        }
++                        else if (h.StartTime - hitObjectManager.HitWindow100 > last.EndTime + hitObjectManager.HitWindow100 + 50)
++                        {
++                            if (!(last is Spinner) && h.StartTime - last.EndTime < 1000) AddFrameToReplay(replay, new bReplayFrame(last.EndTime + hitObjectManager.HitWindow100, last.EndPosition.X, last.EndPosition.Y, pButtonState.None));
++                            if (!(h is Spinner)) AddFrameToReplay(replay, new bReplayFrame(h.StartTime - hitObjectManager.HitWindow100, h.Position.X, h.Position.Y, pButtonState.None));
++                        }
+                     }
+-                    else if (h.StartTime - hitObjectManager.HitWindow100 > last.EndTime + hitObjectManager.HitWindow100 + 50)
++
++
++                    Vector2 targetPosition = h.Position;
++                    EasingTypes easing = preferredEasing;
++                    float spinnerDirection = -1;
++
++                    if (h is Spinner)
+                     {
+-                        if (!(last is Spinner) && h.StartTime - last.EndTime < 1000) AddFrameToReplay(replay, new bReplayFrame(last.EndTime + hitObjectManager.HitWindow100, last.EndPosition.X, last.EndPosition.Y, pButtonState.None));
+-                        if (!(h is Spinner)) AddFrameToReplay(replay, new bReplayFrame(h.StartTime - hitObjectManager.HitWindow100, h.Position.X, h.Position.Y, pButtonState.None));
+-                    }
+-                }
++                        targetPosition.X = replay[replay.Count - 1].mouseX;
++                        targetPosition.Y = replay[replay.Count - 1].mouseY;
+ 
++                        Vector2 difference = spinnerCentre - targetPosition;
+ 
+-                Vector2 targetPosition = h.Position;
+-                EasingTypes easing = preferredEasing;
+-                float spinnerDirection = -1;
++                        float differenceLength = difference.Length();
++                        float newLength = (float)Math.Sqrt(differenceLength * differenceLength - spinnerRadius * spinnerRadius);
+ 
+-                if (h is Spinner)
+-                {
+-                    targetPosition.X = replay[replay.Count - 1].mouseX;
+-                    targetPosition.Y = replay[replay.Count - 1].mouseY;
++                        if (differenceLength > spinnerRadius)
++                        {
++                            float angle = (float)Math.Asin(spinnerRadius / differenceLength);
+ 
+-                    Vector2 difference = spinnerCentre - targetPosition;
++                            if (angle > 0)
++                            {
++                                spinnerDirection = -1;
++                            }
++                            else
++                            {
++                                spinnerDirection = 1;
++                            }
+ 
+-                    float differenceLength = difference.Length();
+-                    float newLength = (float)Math.Sqrt(differenceLength * differenceLength - spinnerRadius * spinnerRadius);
++                            difference.X = difference.X * (float)Math.Cos(angle) - difference.Y * (float)Math.Sin(angle);
++                            difference.Y = difference.X * (float)Math.Sin(angle) + difference.Y * (float)Math.Cos(angle);
+ 
+-                    if (differenceLength > spinnerRadius)
++                            difference.Normalize();
++                            difference *= newLength;
++
++                            targetPosition += difference;
++
++                            easing = EasingTypes.In;
++                        }
++                        else if (difference.Length() > 0)
++                        {
++                            targetPosition = spinnerCentre - difference * (spinnerRadius / difference.Length());
++                        }
++                        else
++                        {
++                            targetPosition = spinnerCentre + new Vector2(0, -spinnerRadius);
++                        }
++                    }
++
++
++                    // Do some nice easing for cursor movements
++                    if (replay.Count > 0)
+                     {
+-                        float angle = (float)Math.Asin(spinnerRadius / differenceLength);
++                        bReplayFrame lastFrame = replay[replay.Count - 1];
+ 
+-                        if (angle > 0)
++                        // Wait until Auto could "see and react" to the next note.
++                        int waitTime = h.StartTime - (int)Math.Max(0.0, hitObjectManager.PreEmpt - reactionTime);
++                        if (waitTime > lastFrame.time)
+                         {
+-                            spinnerDirection = -1;
++                            lastFrame = new bReplayFrame(waitTime, lastFrame.mouseX, lastFrame.mouseY, lastFrame.buttonState);
++                            AddFrameToReplay(replay, lastFrame);
++                        }
++
++                        Vector2 lastPosition = new Vector2(lastFrame.mouseX, lastFrame.mouseY);
++
++                        HitObjectManagerOsu hom = hitObjectManager as HitObjectManagerOsu;
++                        double timeDifference = HitObjectManager.ApplyModsToTime(h.StartTime - lastFrame.time, ModManager.ModStatus);
++
++                        // Only "snap" to hitcircles if they are far enough apart. As the time between hitcircles gets shorter the snapping threshold goes up.
++                        if (hom != null && timeDifference > 0 && // Sanity checks
++                            ((lastPosition - targetPosition).Length() > hom.HitObjectRadius * (1.5 + 100.0 / timeDifference) || // Either the distance is big enough
++                            timeDifference >= 266)) // ... or the beats are slow enough to tap anyway.
++                        {
++                            // Perform eased movement
++                            for (float time = lastFrame.time + frameDelay; time < h.StartTime; time += frameDelay)
++                            {
++                                Vector2 currentPosition = OsuMathHelper.TweenValues(lastPosition, targetPosition, time, lastFrame.time, h.StartTime, easing);
++                                AddFrameToReplay(replay, new bReplayFrame((int)time, currentPosition.X, currentPosition.Y, lastFrame.buttonState));
++                            }
++
++                            buttonIndex = 0;
+                         }
+                         else
+                         {
+-                            spinnerDirection = 1;
++                            buttonIndex++;
+                         }
++                    }
++
++                    pButtonState button = buttonIndex % 2 == 0 ? pButtonState.Left1 : pButtonState.Right1;
++                    pButtonState previousButton = pButtonState.None;
++
++                    bReplayFrame newFrame = new bReplayFrame(h.StartTime, targetPosition.X, targetPosition.Y, button);
++                    bReplayFrame endFrame = new bReplayFrame(h.EndTime + endDelay, h.EndPosition.X, h.EndPosition.Y, pButtonState.None);
++
++                    // Decrement because we want the previous frame, not the next one
++                    int index = FindInsertionIndex(replay, newFrame) - 1;
++
++                    // Do we have a previous frame? No need to check for < replay.Count since we decremented!
++                    if (index >= 0)
++                    {
++                        bReplayFrame previousFrame = replay[index];
++                        previousButton = previousFrame.buttonState;
++
++                        // If a button is already held, then we simply alternate
++                        if (previousButton != pButtonState.None)
++                        {
++                            Debug.Assert(previousButton != (pButtonState.Left1 | pButtonState.Right1));
++
++                            // Force alternation if we have the same button. Otherwise we can just keep the naturally to us assigned button.
++                            if (previousButton == button)
++                            {
++                                button = (pButtonState.Left1 | pButtonState.Right1) & ~button;
++                                newFrame.SetButtonStates(button);
++                            }
++
++                            // We always follow the most recent slider / spinner, so remove any other frames that occur while it exists.
++                            int endIndex = FindInsertionIndex(replay, endFrame);
++
++                            if (index < replay.Count - 1)
++                                replay.RemoveRange(index + 1, Math.Max(0, endIndex - (index + 1)));
++
++                            // After alternating we need to keep holding the other button in the future rather than the previous one.
++                            for (int j = index + 1; j < replay.Count; ++j)
++                            {
++                                // Don't affect frames which stop pressing a button!
++                                if (j < replay.Count - 1 || replay[j].buttonState == previousButton)
++                                    replay[j].SetButtonStates(button);
++                            }
++                        }
++                    }
++
++                    AddFrameToReplay(replay, newFrame);
++
++                    // We add intermediate frames for spinning / following a slider here.
++                    if (h is SpinnerOsu)
++                    {
++                        Vector2 difference = targetPosition - spinnerCentre;
++
++                        float radius = difference.Length();
++                        float angle = radius == 0 ? 0 : (float)Math.Atan2(difference.Y, difference.X);
++
++                        float t;
+ 
+-                        difference.X = difference.X * (float)Math.Cos(angle) - difference.Y * (float)Math.Sin(angle);
+-                        difference.Y = difference.X * (float)Math.Sin(angle) + difference.Y * (float)Math.Cos(angle);
++                        for (float j = h.StartTime + frameDelay; j < h.EndTime; j += frameDelay)
++                        {
++                            t = (float)HitObjectManager.ApplyModsToTime(j - h.StartTime) * spinnerDirection;
++
++                            Vector2 pos = spinnerCentre + CirclePosition(t / 20 + angle, spinnerRadius);
++                            AddFrameToReplay(replay, new bReplayFrame((int)j, pos.X, pos.Y, button));
++                        }
+ 
+-                        difference.Normalize();
+-                        difference *= newLength;
++                        t = (float)HitObjectManager.ApplyModsToTime(h.EndTime - h.StartTime) * spinnerDirection;
++                        Vector2 endPosition = spinnerCentre + CirclePosition(t / 20 + angle, spinnerRadius);
+ 
+-                        targetPosition += difference;
++                        AddFrameToReplay(replay, new bReplayFrame(h.EndTime, endPosition.X, endPosition.Y, button));
+ 
+-                        easing = EasingTypes.In;
++                        endFrame.mouseX = endPosition.X;
++                        endFrame.mouseY = endPosition.Y;
+                     }
+-                    else if (difference.Length() > 0)
++                    else if (h is SliderOsu)
+                     {
+-                        targetPosition = spinnerCentre - difference * (spinnerRadius / difference.Length());
++                        SliderOsu s = h as SliderOsu;
++                        int lastTime = 0;
++
++                        foreach (
++                            Transformation t in
++                                s.sliderFollower.Transformations.FindAll(
++                                    tr => tr.Type == TransformationType.Movement))
++                        {
++                            if (lastTime != 0 && t.Time1 - lastTime < frameDelay) continue;
++
++                            AddFrameToReplay(replay, new bReplayFrame(t.Time1, t.StartVector.X, t.StartVector.Y,
++                                                        button));
++                            lastTime = t.Time1;
++                        }
++
++                        AddFrameToReplay(replay, new bReplayFrame(h.EndTime, h.EndPosition.X, h.EndPosition.Y, button));
+                     }
+-                    else
++
++                    // We only want to let go of our button if we are at the end of the current replay. Otherwise something is still going on after us so we need to keep the button pressed!
++                    if (replay[replay.Count - 1].time <= endFrame.time)
+                     {
+-                        targetPosition = spinnerCentre + new Vector2(0, -spinnerRadius);
++                        AddFrameToReplay(replay, endFrame);
+                     }
+                 }
+ 
++                Player.currentScore.PlayerName = "osu!";
++            }
++            else
++            {
++                //for (int i = 0; i <= 141797; ++i)
++                //{
++                //    var o = ActiveHitObjectAtTime(i);
++                //    if (o == null)
++                //    {
++                //        Logger.Log(string.Format("[time = {0}] UpdateScoring: ActiveHitObject = null", i));
++                //    }
++                //    else if (o.IsType(HitObjectType.Slider))
++                //    {
++                //        var s = (SliderOsu)o;
++                //        Logger.Log(string.Format("[time = {0}] UpdateScoring: ActiveHitObject = Slider, StartTime = {1}, EndTime = {2}", i, s.StartTime, s.EndTime));
++                //    }
++                //    else if (o.IsType(HitObjectType.Spinner))
++                //    {
++                //        var s = (SpinnerOsu)o;
++                //        Logger.Log(string.Format("[time = {0}] UpdateScoring: ActiveHitObject = Spinner, StartTime = {1}, EndTime = {2}", i, s.StartTime, s.EndTime));
++                //    }
++                //}
++
++                int previousSliderStartTime = -hitObjectManager.HitWindow50 - 1;
++                int previousSliderEndTime = -hitObjectManager.HitWindow50 - 1;
++                int currentSliderStartTime = -hitObjectManager.HitWindow50 - 1;
++                int currentSliderEndTime = -hitObjectManager.HitWindow50 - 1;
++
++                var dontSpinHere = new SortedSet<int>();
++
++                int lastEndTime = 0;
+ 
+-                // Do some nice easing for cursor movements
+-                if (replay.Count > 0)
++                for (int i = 0; i < hitObjectManager.hitObjectsCount; i++)
+                 {
+-                    bReplayFrame lastFrame = replay[replay.Count - 1];
++                    HitObject h = hitObjectManager.hitObjects[i];
+ 
+-                    // Wait until Auto could "see and react" to the next note.
+-                    int waitTime = h.StartTime - (int)Math.Max(0.0, hitObjectManager.PreEmpt - reactionTime);
+-                    if (waitTime > lastFrame.time)
++                    lastEndTime = Math.Max(lastEndTime, h.EndTime);
++                    
++                    if (h is SpinnerOsu)
+                     {
+-                        lastFrame = new bReplayFrame(waitTime, lastFrame.mouseX, lastFrame.mouseY, lastFrame.buttonState);
+-                        AddFrameToReplay(replay, lastFrame);
++                        if (h.StartTime == currentSliderStartTime)
++                        {
++                            currentSliderEndTime = Math.Max(currentSliderEndTime, h.EndTime + (int)frameDelay + 1);
++                        }
++                        else if (h.StartTime > currentSliderStartTime)
++                        {
++                            previousSliderStartTime = currentSliderStartTime;
++                            previousSliderEndTime = Math.Max(previousSliderEndTime, currentSliderEndTime);
++                            currentSliderStartTime = h.StartTime;
++                            currentSliderEndTime = h.EndTime + (int)frameDelay + 1;
++                        }
++
++                        continue;
+                     }
+ 
+-                    Vector2 lastPosition = new Vector2(lastFrame.mouseX, lastFrame.mouseY);
++                    if (h is SliderOsu)
++                    {
++                        var s = h as SliderOsu;
+ 
+-                    HitObjectManagerOsu hom = hitObjectManager as HitObjectManagerOsu;
+-                    double timeDifference = HitObjectManager.ApplyModsToTime(h.StartTime - lastFrame.time, ModManager.ModStatus);
++                        var time = h.StartTime;
+ 
+-                    // Only "snap" to hitcircles if they are far enough apart. As the time between hitcircles gets shorter the snapping threshold goes up.
+-                    if (hom != null && timeDifference > 0 && // Sanity checks
+-                        ((lastPosition - targetPosition).Length() > hom.HitObjectRadius * (1.5 + 100.0 / timeDifference) || // Either the distance is big enough
+-                        timeDifference >= 266)) // ... or the beats are slow enough to tap anyway.
+-                    {
+-                        // Perform eased movement
+-                        for (float time = lastFrame.time + frameDelay; time < h.StartTime; time += frameDelay)
++                        if (ConfigManager.sAutoPlusVersion == AutoPlusVersion.v05)
++                        {
++                            int cantClickCirclesUntil;
++
++                            if (time == currentSliderStartTime)
++                            {
++                                // Some object is at the same time as this one.
++                                cantClickCirclesUntil = Math.Min(previousSliderStartTime + hitObjectManager.HitWindow50, previousSliderEndTime);
++                            }
++                            else
++                            {
++                                int endTime = Math.Max(previousSliderEndTime, currentSliderEndTime);
++
++                                cantClickCirclesUntil = Math.Min(currentSliderStartTime + hitObjectManager.HitWindow50, endTime);
++                            }
++
++                            if (time < cantClickCirclesUntil)
++                            {
++                                time = cantClickCirclesUntil;
++                            }
++                        }
++                        else
++                        {
++                            for (; time < h.StartTime + hitObjectManager.HitWindow50; ++time)
++                            {
++                                var hom = HitObjectsMinimalAtTime(time);
++
++                                // TODO: does this apply to slider start circles?
++                                // Doesn't seem so.
++                                // If this is enabled, Tewi 2B Expert can't click on sliders at 98250 and 98484 even though they are clickable.
++
++                                //int index = hom.IndexOf(h);
++                                //if (index > 0 && hom[index - 1].StackCount > 0)
++                                //{
++                                //    var t = hom[index - 1];
++                                //    var isHit = (t.IsType(HitObjectType.Slider) && t.HittableEndTime <= time)
++                                //        || (t.IsType(HitObjectType.Spinner) && t.HittableEndTime <= time - 1)
++                                //        || (!t.IsType(HitObjectType.Slider) && !t.IsType(HitObjectType.Spinner) && t.StartTime <= time);
++
++                                //    if (!isHit)
++                                //        continue;
++                                //}
++
++                                var canClick = true;
++
++                                // CheckClickAction
++                                foreach (HitObject t in hom)
++                                {
++                                    var isHit = (t.IsType(HitObjectType.Slider) && t.HittableEndTime <= time)
++                                        || (t.IsType(HitObjectType.Spinner) && t.HittableEndTime <= time - 1)
++                                        || (!t.IsType(HitObjectType.Slider) && !t.IsType(HitObjectType.Spinner) && t.StartTime <= time);
++
++                                    if (t.StartTime + hitObjectManager.HitWindow50 <= time || isHit) continue;
++
++                                    if (t.StartTime < h.StartTime && t != h)
++                                    {
++                                        canClick = false;
++                                    }
++
++                                    break;
++                                }
++
++                                if (canClick)
++                                    break;
++                            }
++                        }
++
++                        bool clickedStartCircle = false;
++
++                        if (Math.Abs(time - h.StartTime) >= hitObjectManager.HitWindow50)
+                         {
+-                            Vector2 currentPosition = OsuMathHelper.TweenValues(lastPosition, targetPosition, time, lastFrame.time, h.StartTime, easing);
+-                            AddFrameToReplay(replay, new bReplayFrame((int)time, currentPosition.X, currentPosition.Y, lastFrame.buttonState));
++                            Debug.Print("There is no point of time when a circle at {0} can be clicked (closest: {1}). Skipping.", h.StartTime, time);
+                         }
++                        else
++                        {
++                            if (time != h.StartTime)
++                            {
++                                Debug.Print("Moved a click from {0} to {1}.", h.StartTime, time);
++                            }
++                            
++                            AddFrameWithTypeToReplay(frames, new FrameWithType(new bReplayFrame(time, h.Position.X, h.Position.Y, pButtonState.Left1), ObjectType.CLICK, s));
++                            dontSpinHere.Add(time);
++
++                            clickedStartCircle = true;
++                        }
++
++                        if (h.StartTime == currentSliderStartTime)
++                        {
++                            currentSliderEndTime = Math.Max(currentSliderEndTime, h.EndTime);
++                        }
++                        else if (h.StartTime > currentSliderStartTime)
++                        {
++                            previousSliderStartTime = currentSliderStartTime;
++                            previousSliderEndTime = Math.Max(previousSliderEndTime, currentSliderEndTime);
++                            currentSliderStartTime = h.StartTime;
++                            currentSliderEndTime = h.EndTime;
++                        }
++
++                        // Click the slider ticks and whatnot.
++
++                        if (ConfigManager.sAutoPlusVersion == AutoPlusVersion.v06)
++                        {
++                            // Last time when this slider was active.
++                            int? lastActiveTime = null;
++
++                            // Whether we activated the slider on the last active time.
++                            bool activatedOnLastActiveTime = false;
++
++                            // How many slider ticks happened during the time when this slider wasn't active.
++                            int sliderTicksCounter = 0;
++
++                            //// If the slider was active when we clicked its starting circle, set the variables accordingly.
++                            //if (clickedStartCircle && ActiveHitObjectAtTime(time) == h)
++                            //{
++                            //    lastActiveTime = time;
++                            //    activatedOnLastActiveTime = true;
++
++                            //    // TODO: is this correct?
++                            //    sliderTicksCounter = s.sliderScoreTimingPoints.FindAll(x => x <= time).Count;
++                            //}
++
++                            // If the last slider tick is before some other slider ticks, it needs special handling.
++                            int ticksAfterLastStart = s.sliderScoreTimingPoints.FindIndex(x => x >= s.sliderScoreTimingPoints[s.sliderScoreTimingPoints.Count - 1]);
++                            bool specialHandling = (ticksAfterLastStart != s.sliderScoreTimingPoints.Count - 1);
++                            int specialHandlingStartsFrom = s.sliderScoreTimingPoints[s.sliderScoreTimingPoints.Count - 1];
++                            int specialHandlingEndsAt = specialHandling ? s.sliderScoreTimingPoints[s.sliderScoreTimingPoints.Count - 2] : 0;
++
++                            for (int t = h.StartTime; t <= h.EndTime; ++t)
++                            {
++                                var hom = HitObjectsMinimalAtTime(t);
++
++                                if (!hom.Contains(h))
++                                {
++                                    // At this point osu! forgot about this slider for the rest of the map.
++                                    break;
++                                }
++
++                                var active = (ActiveHitObjectAtTime(t, hom) == h);
++
++                                var pos = SliderPositionAtTime(s, t);
++
++                                if (active)
++                                {
++                                    bool activatedNow = false;
++
++                                    if (sliderTicksCounter > 0 && lastActiveTime == null)
++                                    {
++                                        Debug.Print("Slider {0}-{1}: skipped {2} ticks because it wasn't active.", h.StartTime, h.EndTime, sliderTicksCounter);
++
++                                        if (s.sliderScoreTimingPoints.FindAll(x => x >= t).Count > 0)
++                                        {
++                                            // Add frames here anyway to make sure those ticks get processed and don't interfere with later ticks.
++                                            for (int j = 0; j < sliderTicksCounter; ++j)
++                                                AddFrameWithTypeToReplay(frames, new FrameWithType(new bReplayFrame(t, pos.X, pos.Y, pButtonState.Left1), ObjectType.DRAG, s));
++                                        }
++                                    }
++
++                                    // If the slider wasn't active and became active now, get the skipped slider ticks.
++                                    if (lastActiveTime != null && lastActiveTime.Value != t - 1 && sliderTicksCounter > 0)
++                                    {
++                                        var lastActivePos = SliderPositionAtTime(s, lastActiveTime.Value);
++
++                                        // Make sure we activated the slider.
++                                        if (!activatedOnLastActiveTime)
++                                        {
++                                            AddFrameWithTypeToReplay(frames, new FrameWithType(new bReplayFrame(lastActiveTime.Value, lastActivePos.X, lastActivePos.Y, pButtonState.Left1), ObjectType.DRAG, s));
++                                            dontSpinHere.Add(lastActiveTime.Value);
++
++                                            activatedOnLastActiveTime = true;
++                                        }
++
++                                        // On the end of special handling, click one more time for the last slider tick.
++                                        if (specialHandling && t >= specialHandlingEndsAt)
++                                            ++sliderTicksCounter;
++
++                                        // We need to have as many frames here as there were slider ticks.
++                                        for (int j = 0; j < sliderTicksCounter; ++j)
++                                            AddFrameWithTypeToReplay(frames, new FrameWithType(new bReplayFrame(t, pos.X, pos.Y, pButtonState.Left1), ObjectType.DRAG, s));
++
++                                        dontSpinHere.Add(t);
++
++                                        activatedNow = true;
++
++                                        sliderTicksCounter = 0;
++                                    }
++
++                                    if (specialHandling && t > specialHandlingStartsFrom && t <= specialHandlingEndsAt)
++                                    {
++                                        // lastActiveTime is not null here.
++                                        var lastActivePos = SliderPositionAtTime(s, lastActiveTime.Value);
++
++                                        // Make sure the slider stays active.
++                                        if (!activatedOnLastActiveTime)
++                                        {
++                                            AddFrameWithTypeToReplay(frames, new FrameWithType(new bReplayFrame(lastActiveTime.Value, lastActivePos.X, lastActivePos.Y, pButtonState.Left1), ObjectType.DRAG, s));
++                                            dontSpinHere.Add(lastActiveTime.Value);
++                                        }
++                                    }
++
++                                    lastActiveTime = t;
++
++                                    activatedOnLastActiveTime = activatedNow;
++                                }
++
++                                if (s.sliderScoreTimingPoints.Contains(t) && (!specialHandling || t != specialHandlingStartsFrom || s.sliderScoreTimingPoints[ticksAfterLastStart] == t))
++                                {
++                                    if (active)
++                                    {
++                                        // If the slider is active, get the tick right away.
++                                        AddFrameWithTypeToReplay(frames, new FrameWithType(new bReplayFrame(t, pos.X, pos.Y, pButtonState.Left1), ObjectType.DRAG, s));
++
++                                        // If this is the end of slider special handling, add one more frame to get the last tick.
++                                        if (t == specialHandlingEndsAt)
++                                            AddFrameWithTypeToReplay(frames, new FrameWithType(new bReplayFrame(t, pos.X, pos.Y, pButtonState.Left1), ObjectType.DRAG, s));
++
++                                        dontSpinHere.Add(t);
++
++                                        activatedOnLastActiveTime = true;
++                                    }
++                                    else
++                                    {
++                                        // Otherwise, increase the counter.
++                                        ++sliderTicksCounter;
++                                    }
++                                }
++
++                                // This check should be after the previous if so that the code that adds frames when the ticks were skipped wouldn't add one extra frame.
++                                if (specialHandling && t == specialHandlingStartsFrom && lastActiveTime == null && !active)
++                                {
++                                    // No need for special handling in this case as we can't get the last tick anyway.
++                                    specialHandling = false;
++                                }
++
++                                // If the slider is in hitObjectsMinimal at its end time, click on its end.
++                                // TODO: if there's some other object here that we click on we don't need to click on the slider end separately.
++                                if (t == h.EndTime)
++                                {
++                                    AddFrameWithTypeToReplay(frames, new FrameWithType(new bReplayFrame(t, pos.X, pos.Y, pButtonState.Left1), ObjectType.DRAG, s));
++                                    dontSpinHere.Add(t);
++
++                                    if (sliderTicksCounter > 0)
++                                        Debug.Print("Slider {0}-{1}: skipped {2} ticks because it wasn't active.", h.StartTime, h.EndTime, sliderTicksCounter);
++                                }
++                            }
++                        }
++                        else
++                        {
++                            if (s.sliderScoreTimingPoints.Count >= 2)
++                            {
++                                /*
++                                 * If the last tick ends up being earlier than some of the previous ticks,
++                                 * we need to click on the last tick and then slide the slider normally
++                                 * till the last tick for everything to count.
++                                 */
++
++                                var lastTick = s.sliderScoreTimingPoints[s.sliderScoreTimingPoints.Count - 1];
++                                var ticksAfterLastStart = s.sliderScoreTimingPoints.Count - 1;
++
++                                for (int j = s.sliderScoreTimingPoints.Count - 2; j >= 0; --j)
++                                {
++                                    if (s.sliderScoreTimingPoints[j] >= lastTick)
++                                    {
++                                        ticksAfterLastStart = j;
++                                    }
++                                }
++
++                                /*
++                                 * Click on every tick up to ticksAfterLastStart non-inclusive,
++                                 * then hold down the key on lastTick and release
++                                 * on the next to last tick.
++                                 */
++
++                                for (int j = 0; j < ticksAfterLastStart; ++j)
++                                {
++                                    var p = s.sliderScoreTimingPoints[j];
++                                    var pos = SliderPositionAtTime(s, p);
++
++                                    AddFrameWithTypeToReplay(frames, new FrameWithType(new bReplayFrame(p, pos.X, pos.Y, pButtonState.Left1), ObjectType.DRAG, s));
++
++                                    dontSpinHere.Add(p);
++
++                                    Debug.Print("Slider tick at {0}.", p);
++                                }
++
++                                if (ticksAfterLastStart == s.sliderScoreTimingPoints.Count - 1)
++                                {
++                                    // No special handling required in this case.
++                                    var p = s.sliderScoreTimingPoints[ticksAfterLastStart];
++                                    var pos = SliderPositionAtTime(s, p);
++
++                                    AddFrameWithTypeToReplay(frames, new FrameWithType(new bReplayFrame(p, pos.X, pos.Y, pButtonState.Left1), ObjectType.DRAG, s));
++
++                                    dontSpinHere.Add(p);
++
++                                    Debug.Print("Slider tick at {0}.", p);
++                                }
++                                else
++                                {
++                                    var p = lastTick;
++                                    Vector2 pos;
++
++                                    Debug.Print("Slider tick at {0}: holding down the button.", p);
++
++                                    p = s.sliderScoreTimingPoints[s.sliderScoreTimingPoints.Count - 2];
++
++                                    for (; lastTick <= p; ++lastTick)
++                                    {
++                                        pos = SliderPositionAtTime(s, lastTick);
++                                        AddFrameWithTypeToReplay(frames, new FrameWithType(new bReplayFrame(lastTick, pos.X, pos.Y, pButtonState.Left1), ObjectType.DRAG, s));
++
++                                        dontSpinHere.Add(lastTick);
++                                    }
++
++                                    pos = SliderPositionAtTime(s, p);
++
++                                    // This second frame is important - it is here so the game accounts for the missed lastTick.
++                                    AddFrameWithTypeToReplay(frames, new FrameWithType(new bReplayFrame(p, pos.X, pos.Y, pButtonState.Left1), ObjectType.DRAG, s));
++
++                                    Debug.Print("Slider tick at {0}: releasing the button.", p);
++                                }
++                            }
++                            else
++                            {
++                                foreach (var p in s.sliderScoreTimingPoints)
++                                {
++                                    var pos = SliderPositionAtTime(s, p);
+ 
+-                        buttonIndex = 0;
++                                    AddFrameWithTypeToReplay(frames, new FrameWithType(new bReplayFrame(p, pos.X, pos.Y, pButtonState.Left1), ObjectType.DRAG, s));
++
++                                    dontSpinHere.Add(p);
++
++                                    Debug.Print("Slider tick at {0}.", p);
++                                }
++                            }
++
++                            AddFrameWithTypeToReplay(frames, new FrameWithType(new bReplayFrame(h.EndTime, h.EndPosition.X, h.EndPosition.Y, pButtonState.Left1), ObjectType.DRAG, s));
++
++                            //dontSpinHere.Add(h.EndTime);
++
++                            Debug.Print("Slider end at {0}.", h.EndTime);
++                        }
+                     }
+                     else
+                     {
+-                        buttonIndex++;
+-                    }
+-                }
++                        var time = h.StartTime;
+ 
+-                pButtonState button = buttonIndex % 2 == 0 ? pButtonState.Left1 : pButtonState.Right1;
+-                pButtonState previousButton = pButtonState.None;
++                        if (ConfigManager.sAutoPlusVersion == AutoPlusVersion.v05)
++                        {
++                            int cantClickCirclesUntil;
+ 
+-                bReplayFrame newFrame = new bReplayFrame(h.StartTime, targetPosition.X, targetPosition.Y, button);
+-                bReplayFrame endFrame = new bReplayFrame(h.EndTime + endDelay, h.EndPosition.X, h.EndPosition.Y, pButtonState.None);
++                            if (time == currentSliderStartTime)
++                            {
++                                // Some object is at the same time as this one.
++                                cantClickCirclesUntil = Math.Min(previousSliderStartTime + hitObjectManager.HitWindow50, previousSliderEndTime);
++                            }
++                            else
++                            {
++                                int endTime = Math.Max(previousSliderEndTime, currentSliderEndTime);
+ 
+-                // Decrement because we want the previous frame, not the next one
+-                int index = FindInsertionIndex(replay, newFrame) - 1;
++                                cantClickCirclesUntil = Math.Min(currentSliderStartTime + hitObjectManager.HitWindow50, endTime);
++                            }
+ 
+-                // Do we have a previous frame? No need to check for < replay.Count since we decremented!
+-                if (index >= 0)
+-                {
+-                    bReplayFrame previousFrame = replay[index];
+-                    previousButton = previousFrame.buttonState;
++                            if (time < cantClickCirclesUntil)
++                            {
++                                time = cantClickCirclesUntil;
++                            }
++                        }
++                        else
++                        {
++                            for (; time < h.StartTime + hitObjectManager.HitWindow50; ++time)
++                            {
++                                var hom = HitObjectsMinimalAtTime(time);
+ 
+-                    // If a button is already held, then we simply alternate
+-                    if (previousButton != pButtonState.None)
+-                    {
+-                        Debug.Assert(previousButton != (pButtonState.Left1 | pButtonState.Right1));
++                                int index = hom.IndexOf(h);
++                                if (index > 0 && hom[index - 1].StackCount > 0)
++                                {
++                                    var t = hom[index - 1];
++                                    var isHit = (t.IsType(HitObjectType.Slider) && t.HittableEndTime <= time)
++                                        || (t.IsType(HitObjectType.Spinner) && t.HittableEndTime <= time - 1)
++                                        || (!t.IsType(HitObjectType.Slider) && !t.IsType(HitObjectType.Spinner) && t.StartTime <= time);
++
++                                    if (!isHit)
++                                        continue;
++                                }
++
++                                var canClick = true;
++
++                                // CheckClickAction
++                                foreach (HitObject t in hom)
++                                {
++                                    var isHit = (t.IsType(HitObjectType.Slider) && t.HittableEndTime <= time)
++                                        || (t.IsType(HitObjectType.Spinner) && t.HittableEndTime <= time - 1)
++                                        || (!t.IsType(HitObjectType.Slider) && !t.IsType(HitObjectType.Spinner) && t.StartTime <= time);
++
++                                    if (t.StartTime + hitObjectManager.HitWindow50 <= time || isHit) continue;
++
++                                    if (t.StartTime < h.StartTime && t != h)
++                                    {
++                                        canClick = false;
++                                    }
++
++                                    break;
++                                }
++
++                                if (canClick)
++                                    break;
++                            }
++                        }
+ 
+-                        // Force alternation if we have the same button. Otherwise we can just keep the naturally to us assigned button.
+-                        if (previousButton == button)
++                        if (Math.Abs(time - h.StartTime) >= hitObjectManager.HitWindow50)
+                         {
+-                            button = (pButtonState.Left1 | pButtonState.Right1) & ~button;
+-                            newFrame.SetButtonStates(button);
++                            Debug.Print("There is no point of time when a circle at {0} can be clicked (closest: {1}). Skipping.", h.StartTime, time);
+                         }
++                        else
++                        {
++                            if (time != h.StartTime)
++                            {
++                                Debug.Print("Moved a click from {0} to {1}.", h.StartTime, time);
++                            }
+ 
+-                        // We always follow the most recent slider / spinner, so remove any other frames that occur while it exists.
+-                        int endIndex = FindInsertionIndex(replay, endFrame);
++                            AddFrameWithTypeToReplay(frames, new FrameWithType(new bReplayFrame(time, h.Position.X, h.Position.Y, pButtonState.Left1), ObjectType.CLICK));
++                            dontSpinHere.Add(time);
++                        }
++                    }
++                }
+ 
+-                        if (index < replay.Count - 1)
+-                            replay.RemoveRange(index + 1, Math.Max(0, endIndex - (index + 1)));
++                var spinTimes = new List<SpinTime>();
++                int currentIndex = 0;
+ 
+-                        // After alternating we need to keep holding the other button in the future rather than the previous one.
+-                        for (int j = index + 1; j < replay.Count; ++j)
++                if (ConfigManager.sAutoPlusVersion == AutoPlusVersion.v06)
++                {
++                    for (int t = hitObjectManager.hitObjects[0].StartTime; t <= lastEndTime; ++t)
++                    {
++                        var h = ActiveHitObjectAtTime(t);
++
++                        if (h == null)
++                            continue;
++
++                        if (h.IsType(HitObjectType.Spinner))
+                         {
+-                            // Don't affect frames which stop pressing a button!
+-                            if (j < replay.Count - 1 || replay[j].buttonState == previousButton)
+-                                replay[j].SetButtonStates(button);
++                            var s = (SpinnerOsu)h;
++
++                            if (currentIndex == 0)
++                            {
++                                spinTimes.Add(new SpinTime(t, t));
++                                ++currentIndex;
++                            }
++                            else
++                            {
++                                var lastSpin = spinTimes[currentIndex - 1];
++                                if (lastSpin.EndTime == t - 1)
++                                {
++                                    lastSpin.EndTime += 1;
++                                    spinTimes[currentIndex - 1] = lastSpin;
++                                }
++                                else
++                                {
++                                    spinTimes.Add(new SpinTime(t, t));
++                                    ++currentIndex;
++                                }
++                            }
+                         }
+                     }
+                 }
++                else
++                {
++                    for (int i = 0; i < hitObjectManager.hitObjects.Count; ++i)
++                    {
++                        var o = hitObjectManager.hitObjects[i];
+ 
+-                AddFrameToReplay(replay, newFrame);
++                        if (!(o is SpinnerOsu))
++                            continue;
+ 
+-                // We add intermediate frames for spinning / following a slider here.
+-                if (h is SpinnerOsu)
+-                {
+-                    Vector2 difference = targetPosition - spinnerCentre;
++                        if (currentIndex == 0)
++                        {
++                            spinTimes.Add(new SpinTime(o.StartTime, o.EndTime));
++                            ++currentIndex;
++                        }
++                        else
++                        {
++                            var lastSpin = spinTimes[currentIndex - 1];
++                            if (lastSpin.EndTime >= o.StartTime)
++                            {
++                                Debug.Print("Merging a spinner (Start={0}; End={1}) into previous (Start={2}; End={3}).", o.StartTime, o.EndTime, lastSpin.StartTime, lastSpin.EndTime);
+ 
+-                    float radius = difference.Length();
+-                    float angle = radius == 0 ? 0 : (float)Math.Atan2(difference.Y, difference.X);
++                                lastSpin.EndTime = o.EndTime;
++                                spinTimes[currentIndex - 1] = lastSpin;
++                            }
++                            else
++                            {
++                                spinTimes.Add(new SpinTime(o.StartTime, o.EndTime));
++                                ++currentIndex;
++                            }
++                        }
++                    }
++                }
+ 
++                foreach (var h in spinTimes)
++                {
++                    Vector2 pos = spinnerCentre;
+                     float t;
+ 
+-                    for (float j = h.StartTime + frameDelay; j < h.EndTime; j += frameDelay)
++                    var problematicFrames = dontSpinHere.GetViewBetween(
++                        h.StartTime,
++                        h.EndTime + (int)frameDelay + 1
++                    );
++
++                    bool buttonWasDown = false;
++
++                    for (t = h.StartTime; t <= h.EndTime; t += frameDelay)
+                     {
+-                        t = (float)HitObjectManager.ApplyModsToTime(j - h.StartTime) * spinnerDirection;
++                        pos = spinnerCentre + CirclePosition(t / 10, 1);
+ 
+-                        Vector2 pos = spinnerCentre + CirclePosition(t / 20 + angle, spinnerRadius);
+-                        AddFrameToReplay(replay, new bReplayFrame((int)j, pos.X, pos.Y, button));
+-                    }
++                        if (!problematicFrames.Contains((int)t))
++                        {
++                            if (problematicFrames.GetViewBetween((int)t + 1, (int)(t + frameDelay)).Count == 0)
++                            {
++                                AddFrameWithTypeToReplay(frames, new FrameWithType(new bReplayFrame((int)t, pos.X, pos.Y, pButtonState.Left1), ObjectType.SPIN));
++                                buttonWasDown = true;
++                            }
++                            else
++                            {
++                                if (buttonWasDown)
++                                {
++                                    AddFrameWithTypeToReplay(frames, new FrameWithType(new bReplayFrame((int)t, pos.X, pos.Y, pButtonState.Left1), ObjectType.SPIN));
++                                    AddFrameWithTypeToReplay(frames, new FrameWithType(new bReplayFrame((int)t, pos.X, pos.Y, pButtonState.None), ObjectType.SPIN));
+ 
+-                    t = (float)HitObjectManager.ApplyModsToTime(h.EndTime - h.StartTime) * spinnerDirection;
+-                    Vector2 endPosition = spinnerCentre + CirclePosition(t / 20 + angle, spinnerRadius);
++                                    buttonWasDown = false;
++                                }
++                            }
++                        }
++                    }
+ 
+-                    AddFrameToReplay(replay, new bReplayFrame(h.EndTime, endPosition.X, endPosition.Y, button));
++                    if (buttonWasDown)
++                    {
++                        // Breaks with HT when there are multiple spinners?
++                        //if (!ModManager.CheckActive(Mods.HalfTime))
++                            AddFrameWithTypeToReplay(frames, new FrameWithType(new bReplayFrame((int)t, pos.X, pos.Y, pButtonState.Left1), ObjectType.SPIN));
+ 
+-                    endFrame.mouseX = endPosition.X;
+-                    endFrame.mouseY = endPosition.Y;
++                        AddFrameWithTypeToReplay(frames, new FrameWithType(new bReplayFrame((int)t, pos.X, pos.Y, pButtonState.None), ObjectType.SPIN));
++                    }
+                 }
+-                else if (h is SliderOsu)
++
++                SplinePoints spline = new SplinePoints();
++                int splineEndTime = frames[0].frame.time - 1;
++                UInt32 currentSplinePoint = 0;
++
++                const double STEP = 1000 / 144.0;
++                const int TIME_TOO_CLOSE = 10;
++                const double SLIDER_DERIVATIVE_FACTOR = 4.0;
++
++                bool FOLLOW_SLIDERS = (ConfigManager.sAutoPlusType != AutoPlusType.Normal);
++                bool INTERPOLATE = (ConfigManager.sAutoPlusType == AutoPlusType.Interpolate);
++
++                // Generate the final replay.
++                for (int i = 0; i < frames.Count; ++i)
+                 {
+-                    SliderOsu s = h as SliderOsu;
+-                    int lastTime = 0;
++                    var frame = frames[i].frame;
++                    replay.Add(new bReplayFrame(frame.time, frame.mouseX, frame.mouseY, frame.buttonState));
++
++                    var buttonState = frame.buttonState;
+ 
+-                    foreach (
+-                        Transformation t in
+-                            s.sliderFollower.Transformations.FindAll(
+-                                tr => tr.Type == TransformationType.Movement))
++                    if (frames[i].type != ObjectType.SPIN)
+                     {
+-                        if (lastTime != 0 && t.Time1 - lastTime < frameDelay) continue;
++                        if (i == frames.Count - 1 || (frames[i + 1].type == ObjectType.CLICK || frames[i + 1].type == ObjectType.SPIN))
++                        {
++                            replay.Add(new bReplayFrame(frame.time, frame.mouseX, frame.mouseY, pButtonState.None));
++                            buttonState = pButtonState.None;
++                        }
+ 
+-                        AddFrameToReplay(replay, new bReplayFrame(t.Time1, t.StartVector.X, t.StartVector.Y,
+-                                                    button));
+-                        lastTime = t.Time1;
+-                    }
++                        if (FOLLOW_SLIDERS)
++                        {
++                            // Follow the sliders.
++                            if (i != frames.Count - 1 && frames[i].slider != null && frames[i + 1].slider == frames[i].slider)
++                            {
++                                // This can only be from click to drag or from drag to drag.
++                                Debug.Assert(frames[i].type == ObjectType.CLICK || frames[i].type == ObjectType.DRAG);
++                                Debug.Assert(frames[i + 1].type == ObjectType.DRAG);
++
++                                for (double t = frame.time + STEP; t < frames[i + 1].frame.time - STEP / 2; t += STEP)
++                                {
++                                    var pos = SliderPositionAtTime(frames[i].slider, (int)t);
++                                    replay.Add(new bReplayFrame((int)t, pos.X, pos.Y, frame.buttonState));
++                                }
++                            }
++                        }
++
++                        if (INTERPOLATE)
++                        {
++                            // Interpolate elsewhere.
++                            unsafe
++                            {
++                                // Do we need to make a new spline from this point?
++                                if (i != frames.Count - 1
++                                    && splineEndTime <= frame.time
++                                    && (frames[i].slider == null || frames[i + 1].slider != frames[i].slider)
++                                    && (frames[i + 1].frame.time - frames[i].frame.time >= TIME_TOO_CLOSE))
++                                {
++                                    // Figure out the start derivatives.
++                                    // Either this is the very first frame, or we're coming out of a slider, or last frame was a spinner,
++                                    // or last frame was too close in time to this one.
++                                    double d1_x, d1_y;
++
++                                    if (i == 0)
++                                    {
++                                        d1_x = (frames[0].frame.mouseX - spinnerCentre.X) / 1000.0;
++                                        d1_y = (frames[0].frame.mouseY - spinnerCentre.Y) / 1000.0;
++                                    }
++                                    else
++                                    {
++                                        if (frames[i].frame.time - frames[i - 1].frame.time < TIME_TOO_CLOSE)
++                                        {
++                                            // The last object was too close in time.
++                                            d1_x = (frames[i].frame.mouseX - frames[i - 1].frame.mouseX) / 100.0;
++                                            d1_y = (frames[i].frame.mouseY - frames[i - 1].frame.mouseY) / 100.0;
++                                        }
++                                        else
++                                        {
++                                            if (frames[i].slider == null)
++                                            {
++                                                Debug.Assert(frames[i - 1].type == ObjectType.SPIN);
++
++                                                double t = frame.time - frames[i - 1].frame.time;
++                                                d1_x = (frames[i].frame.mouseX - spinnerCentre.X) / t;
++                                                d1_y = (frames[i].frame.mouseY - spinnerCentre.Y) / t;
++                                            }
++                                            else
++                                            {
++                                                // We're coming out of a slider.
++                                                Debug.Assert(frames[i - 1].slider == frames[i].slider);
++
++                                                var d = SliderDerivativeAtTime(frames[i].slider, frame.time);
++                                                d1_x = d.X * SLIDER_DERIVATIVE_FACTOR;
++                                                d1_y = d.Y * SLIDER_DERIVATIVE_FACTOR;
++                                            }
++                                        }
++                                    }
++
++                                    // Add points to the interpolation.
++                                    List<double> ts = new List<double>();
++                                    List<double> xs = new List<double>();
++                                    List<double> ys = new List<double>();
++
++                                    ts.Add(frame.time);
++                                    xs.Add(frame.mouseX);
++                                    ys.Add(frame.mouseY);
++
++                                    int j;
++                                    for (j = i + 1; j < frames.Count; ++j)
++                                    {
++                                        ts.Add(frames[j].frame.time);
++                                        xs.Add(frames[j].frame.mouseX);
++                                        ys.Add(frames[j].frame.mouseY);
++
++                                        if (frames[j].type == ObjectType.SPIN // A spinner is starting.
++                                            || (j != frames.Count - 1 && frames[j].slider != null && frames[j + 1].slider == frames[j].slider) // A slider following is starting.
++                                            || (j != frames.Count - 1 && frames[j + 1].frame.time - frames[j].frame.time < TIME_TOO_CLOSE)) // Too close in time.
++                                        {
++                                            break;
++                                        }
++                                    }
++
++                                    // Figure out the end derivatives.
++                                    double dn_x, dn_y;
++                                    // Either we reached the end, or a spinner is starting, or a slider following is starting,
++                                    // or the next object is too close in time.
++                                    if (j == frames.Count || frames[j].type == ObjectType.SPIN)
++                                    {
++                                        dn_x = 0.0;
++                                        dn_y = 0.0;
++                                    }
++                                    else
++                                    {
++                                        if (frames[j + 1].frame.time - frames[j].frame.time < TIME_TOO_CLOSE)
++                                        {
++                                            // The last object is too close in time.
++                                            dn_x = (frames[j + 1].frame.mouseX - frames[j].frame.mouseX) / 100.0;
++                                            dn_y = (frames[j + 1].frame.mouseY - frames[j].frame.mouseY) / 100.0;
++                                        }
++                                        else
++                                        {
++                                            Debug.Assert(frames[j].slider != null && frames[j + 1].slider == frames[j].slider);
++
++                                            var d = SliderDerivativeAtTime(frames[j].slider, frames[j].frame.time);
++                                            dn_x = d.X * SLIDER_DERIVATIVE_FACTOR;
++                                            dn_y = d.Y * SLIDER_DERIVATIVE_FACTOR;
++                                        }
++                                    }
++
++                                    if (splineEndTime != frames[0].frame.time - 1)
++                                        spline_free(ref spline);
+ 
+-                    AddFrameToReplay(replay, new bReplayFrame(h.EndTime, h.EndPosition.X, h.EndPosition.Y, button));
++                                    var ts_arr = ts.ToArray();
++                                    var xs_arr = xs.ToArray();
++                                    var ys_arr = ys.ToArray();
++
++                                    spline_interp(STEP,
++                                                  d1_x,
++                                                  d1_y,
++                                                  dn_x,
++                                                  dn_y,
++                                                  ts_arr,
++                                                  xs_arr,
++                                                  ys_arr,
++                                                  (UInt32)ts.Count,
++                                                  out spline);
++
++                                    if (j == frames.Count)
++                                        --j;
++                                    splineEndTime = frames[j].frame.time;
++                                    currentSplinePoint = 0;
++                                }
++
++                                // Do we need to interpolate the cursor between this frame and the next frame?
++                                if (i != frames.Count - 1 && splineEndTime > frame.time && (frames[i].slider == null || frames[i + 1].slider != frames[i].slider))
++                                {
++                                    while (currentSplinePoint < spline.n && (int)spline.ts[currentSplinePoint] < frames[i + 1].frame.time)
++                                    {
++                                        replay.Add(new bReplayFrame((int)spline.ts[currentSplinePoint], (float)spline.xs[currentSplinePoint], (float)spline.ys[currentSplinePoint], buttonState));
++                                        ++currentSplinePoint;
++                                    }
++                                }
++                            }
++                        }
++                    }
+                 }
+ 
+-                // We only want to let go of our button if we are at the end of the current replay. Otherwise something is still going on after us so we need to keep the button pressed!
+-                if (replay[replay.Count - 1].time <= endFrame.time)
++                if (INTERPOLATE)
+                 {
+-                    AddFrameToReplay(replay, endFrame);
++                    Player.currentScore.PlayerName = "Auto+ Interp";
++                }
++                else
++                {
++                    Player.currentScore.PlayerName = "Auto+";
+                 }
+             }
+ 
+             Player.currentScore.Replay = InputManager.ReplayScore.Replay;
+-            Player.currentScore.PlayerName = "osu!";
++
++            if (ConfigManager.sAutoPlus && ConfigManager.sAutoPlusSaveReplayBeforePlaying)
++            {
++                using (Stream stream = File.Open("replay.osr", FileMode.Create))
++                    Player.currentScore.WriteToStream(new SerializationWriter(stream));
++            }
+         }
+     }
+ }
+\ No newline at end of file
+diff --git a/osu!/GameModes/Play/Rulesets/Ruleset.cs b/osu!/GameModes/Play/Rulesets/Ruleset.cs
+index 6112bdd..6f5fb84 100644
+--- a/osu!/GameModes/Play/Rulesets/Ruleset.cs
++++ b/osu!/GameModes/Play/Rulesets/Ruleset.cs
+@@ -30,6 +30,7 @@ using osu.GameModes.Play.Rulesets.Mania;
+ using osu.Helpers;
+ using System.Text;
+ using osu.GameplayElements.Scoring.Processors;
++using System.Diagnostics;
+ 
+ namespace osu.GameModes.Play.Rulesets
+ {
+@@ -597,6 +598,21 @@ namespace osu.GameModes.Play.Rulesets
+         /// </summary>
+         internal virtual void UpdateScoring()
+         {
++            //if (player.ActiveHitObject == null)
++            //{
++            //    Debug.Print(string.Format("[time = {0}] UpdateScoring: ActiveHitObject = null", AudioEngine.Time));
++            //}
++            //else if (player.ActiveHitObject.IsType(HitObjectType.Slider))
++            //{
++            //    var s = (SliderOsu)player.ActiveHitObject;
++            //    Debug.Print(string.Format("[time = {0}] UpdateScoring: ActiveHitObject = Slider, StartTime = {1}, EndTime = {2}", AudioEngine.Time, s.StartTime, s.EndTime));
++            //}
++            //else if (player.ActiveHitObject.IsType(HitObjectType.Spinner))
++            //{
++            //    var s = (SpinnerOsu)player.ActiveHitObject;
++            //    Debug.Print(string.Format("[time = {0}] UpdateScoring: ActiveHitObject = Spinner, StartTime = {1}, EndTime = {2}", AudioEngine.Time, s.StartTime, s.EndTime));
++            //}
++
+             //Update any active slider/spinner.
+             if (player.ActiveHitObject != null)
+             {
+@@ -1173,6 +1189,9 @@ namespace osu.GameModes.Play.Rulesets
+                 {
+                     CurrentScore.MaxCombo = Math.Max(CurrentScore.MaxCombo, ++ComboCounter.HitCombo);
+                     CurrentScore.CurrentCombo = (ushort)ComboCounter.HitCombo;
++
++                    //if (AudioEngine.Time > 0)
++                    //    Debug.Print("[time = {0}] Combo changed to {1}.", AudioEngine.Time, CurrentScore.CurrentCombo);
+                 }
+                 else
+                 {
+@@ -1189,6 +1208,9 @@ namespace osu.GameModes.Play.Rulesets
+ 
+                     CurrentScore.CurrentCombo = (ushort)(ComboCounter.HitCombo = 0);
+ 
++                    //if (AudioEngine.Time > 0)
++                    //    Debug.Print("[time = {0}] Combo changed to {1}.", AudioEngine.Time, CurrentScore.CurrentCombo);
++
+                     if (ModManager.CheckActive(CurrentScore.EnabledMods, Mods.SuddenDeath))
+                         HpBar.SetCurrentHp(0); //Set HP to 0 on a slider miss too.
+                 }
+@@ -1468,7 +1490,11 @@ namespace osu.GameModes.Play.Rulesets
+                 if (index > 0 && hitObjectManager.hitObjectsMinimal[index - 1].StackCount > 0 &&
+                     hitObjectManager.hitObjectsMinimal[index - 1].IsVisible &&
+                     !hitObjectManager.hitObjectsMinimal[index - 1].IsHit)
++                {
++                    Debug.Print("[time = {0}] Skipping a click because previous object isn't hit and has a StackCount > 0.", AudioEngine.Time);
++
+                     return ClickAction.Ignore;
++                }
+             }
+ 
+             bool isNextCircle = true;
+@@ -1477,11 +1503,20 @@ namespace osu.GameModes.Play.Rulesets
+                 if (t.StartTime + hitObjectManager.HitWindow50 <= AudioEngine.Time || t.IsHit) continue;
+ 
+                 if (t.StartTime < h.StartTime && t != h)
++                {
+                     isNextCircle = false;
++
++                    Debug.Print("[time = {2}] Skipping a click because t.StartTime = {3}, t.StartTime + hitObjectManager.HitWindow50 = {0} and target.StartTime = {1}.", t.StartTime + hitObjectManager.HitWindow50, h.StartTime, AudioEngine.Time, t.StartTime);
++                }
++
+                 break;
+             }
+ 
+             int apLeniency = Player.Relaxing2 ? 200 : 0;
++
++            if (isNextCircle && Math.Abs(h.StartTime - AudioEngine.Time) >= HitObjectManager.HITTABLE_RANGE - apLeniency)
++                Debug.Print("[time = {0}] Skipping a click because we went over HITTABLE_RANGE, StartTime = {1}.", AudioEngine.Time, h.StartTime);
++
+             return (isNextCircle && Math.Abs(h.StartTime - AudioEngine.Time) < HitObjectManager.HITTABLE_RANGE - apLeniency)
+                        ? ClickAction.Hit
+                        : ClickAction.Shake;
+diff --git a/osu!/GameplayElements/HitObjectManager.cs b/osu!/GameplayElements/HitObjectManager.cs
+index 5615165..ae61ebc 100644
+--- a/osu!/GameplayElements/HitObjectManager.cs
++++ b/osu!/GameplayElements/HitObjectManager.cs
+@@ -853,6 +853,8 @@ namespace osu.GameplayElements
+ 
+             IncreaseScoreType hitValue = h.Hit();
+ 
++            Debug.Print("[time = {0}] HitObjectManager.Hit() => {1} (StartTime = {2})", AudioEngine.Time, hitValue, h.StartTime);
++
+             int index = hitObjects.BinarySearch(h);
+             currentHitObjectIndex = index < 0 ? ~index : index;
+ 
+@@ -1425,10 +1427,15 @@ namespace osu.GameplayElements
+                 minimalRight = Math.Max(minimalRight, editor.TimelineRightBound);
+             }
+ 
++            // This compares EndTimes.
++            // Select objects starting from the one that ends at AudioEngine.Time - PreEmpt.
++            // Here lies a problem: on maps with concurrent objects hitObjects is not sorted by EndTime,
++            // which makes BinarySearch return a wrong result.
+             int startIndex = hitObjects.BinarySearch(new HitObjectDummy(this, minimalLeft));
+             if (startIndex < 0)
+                 startIndex = ~startIndex;
+ 
++            // Select objects ending with the one which starts after AudioEngine.Time + PreEmpt.
+             int endIndex;
+             for (endIndex = startIndex; endIndex < hitObjectsCount - 1; endIndex++)
+                 if (hitObjects[endIndex].StartTime > minimalRight)
+@@ -1515,7 +1522,10 @@ namespace osu.GameplayElements
+                     if (GameBase.Mode == OsuModes.Play)
+                     {
+                         if (slider.StartTime + HitWindow50 < AudioEngine.Time && !slider.StartIsHit && GameBase.Mode == OsuModes.Play)
++                        {
+                             Hit(slider.sliderStartCircle);
++                            Debug.Print("[time = {0}] Hit the slider start circle #2 (StartTime = {1}).", AudioEngine.Time, slider.StartTime);
++                        }
+ 
+                         if (slider.HittableEndTime <= AudioEngine.Time && !slider.IsHit)
+                             Hit(slider);
+diff --git a/osu!/GameplayElements/HitObjects/HitCircle.cs b/osu!/GameplayElements/HitObjects/HitCircle.cs
+index a00e8c7..9dec49b 100644
+--- a/osu!/GameplayElements/HitObjects/HitCircle.cs
++++ b/osu!/GameplayElements/HitObjects/HitCircle.cs
+@@ -2,6 +2,7 @@
+ using osu.Audio;
+ using osu.GameModes.Play.Rulesets;
+ using osu.GameplayElements.Beatmaps;
++using System.Diagnostics;
+ 
+ namespace osu.GameplayElements.HitObjects
+ {
+@@ -33,6 +34,8 @@ namespace osu.GameplayElements.HitObjects
+ 
+             Arm(HitValue > 0);
+ 
++            Debug.Print("[time = {0}] HitCircle.Hit() => {1} (StartTime = {2}, accuracy = {3})", AudioEngine.Time, HitValue, StartTime, accuracy);
++
+             return HitValue;
+         }
+     }
+diff --git a/osu!/GameplayElements/HitObjects/Osu/SliderOsu.cs b/osu!/GameplayElements/HitObjects/Osu/SliderOsu.cs
+index dc3577a..6c32559 100644
+--- a/osu!/GameplayElements/HitObjects/Osu/SliderOsu.cs
++++ b/osu!/GameplayElements/HitObjects/Osu/SliderOsu.cs
+@@ -23,6 +23,7 @@ using osu_common;
+ using Un4seen.Bass;
+ using osu.GameplayElements.Scoring;
+ using osu.GameModes.Online;
++using System.Diagnostics;
+ 
+ namespace osu.GameplayElements.HitObjects.Osu
+ {
+@@ -1696,6 +1697,9 @@ namespace osu.GameplayElements.HitObjects.Osu
+                 downButton = InputManager.leftCond
+                                  ? MouseButtons.Left
+                                  : InputManager.rightCond ? MouseButtons.Right : MouseManager.MouseDownButton;
++
++            Debug.Print("[time = {0}] Hit the slider start circle (StartTime = {1}).", AudioEngine.Time, StartTime);
++
+             return sliderStartCircle.Hit();
+         }
+ 
+@@ -1709,6 +1713,8 @@ namespace osu.GameplayElements.HitObjects.Osu
+ 
+             double hitFraction = (double)sliderTicksHit / (sliderScoreTimingPoints.Count + 1);
+ 
++            Debug.Print("[time = {0}] Slider.Hit() hitFraction = {1}; StartTime = {2}.", AudioEngine.Time, hitFraction, StartTime);
++
+             if (hitFraction > 0)
+                 PlaySound();
+ 
+@@ -1951,6 +1957,8 @@ namespace osu.GameplayElements.HitObjects.Osu
+             if (IsHit || AudioEngine.Time < StartTime)
+                 return IncreaseScoreType.Ignore;
+ 
++            //Debug.Print("Slider.GetScorePoints at {0} (StartTime = {1}).", AudioEngine.Time, StartTime);
++
+             bool allowable = false;
+ 
+             bool mouseDownAcceptable = false;
+@@ -2048,6 +2056,8 @@ namespace osu.GameplayElements.HitObjects.Osu
+                 {
+                     int index = sliderTicksHit + sliderTicksMissed;
+ 
++                    Debug.Print("[time = {4}] Slider tick {0}: allowable = {1}; InitTime = {2}; tick time = {3}; StartTime = {5}.", index, allowable, InitTime, sliderScoreTimingPoints[index], AudioEngine.Time, StartTime);
++
+                     if (allowable && InitTime <= sliderScoreTimingPoints[index])
+                     {
+                         sliderTicksHit++;
+@@ -2069,6 +2079,8 @@ namespace osu.GameplayElements.HitObjects.Osu
+                         else
+                             score = IncreaseScoreType.MissHpOnly;
+                     }
++
++                    Debug.Print("\t=> score = {0}", score);
+                 }
+             }
+ 
+diff --git a/osu!/GameplayElements/HitObjects/Osu/SpinnerOsu.cs b/osu!/GameplayElements/HitObjects/Osu/SpinnerOsu.cs
+index f262a90..a86906a 100644
+--- a/osu!/GameplayElements/HitObjects/Osu/SpinnerOsu.cs
++++ b/osu!/GameplayElements/HitObjects/Osu/SpinnerOsu.cs
+@@ -17,6 +17,7 @@ using osu.Input;
+ using osu.Input.Handlers;
+ using osu_common;
+ using Un4seen.Bass;
++using System.Diagnostics;
+ 
+ namespace osu.GameplayElements.HitObjects.Osu
+ {
+@@ -239,6 +240,8 @@ namespace osu.GameplayElements.HitObjects.Osu
+                 return;
+ 
+             double decay = Math.Pow(0.9, InputManager.ElapsedAudioTime / GameBase.SIXTY_FRAME_TIME);
++
++            // At high framerates (Math.Abs(velocityCurrent) * 1000) / (Math.PI * 2) * 60 is between 0 and 0.5.
+             rpm = rpm * decay + (1.0 - decay) * (Math.Abs(velocityCurrent) * 1000) / (Math.PI * 2) * 60;
+ 
+             if (spriteRpmText != null) spriteRpmText.Text = string.Format(@"{0:#,0}", rpm);
+@@ -408,6 +411,8 @@ namespace osu.GameplayElements.HitObjects.Osu
+ 
+         internal override IncreaseScoreType Hit()
+         {
++            //Debug.Print("[time = {0}] Spinner.Hit() StartTime = {1}, EndTime = {2}.", AudioEngine.Time, StartTime, EndTime);
++
+             StopSound();
+ 
+             spriteGlow?.FadeOut(300);
+diff --git a/osu!/GameplayElements/Scoring/Processors/ScoreProcessor.cs b/osu!/GameplayElements/Scoring/Processors/ScoreProcessor.cs
+index 14ef003..54605d7 100644
+--- a/osu!/GameplayElements/Scoring/Processors/ScoreProcessor.cs
++++ b/osu!/GameplayElements/Scoring/Processors/ScoreProcessor.cs
+@@ -58,7 +58,6 @@ namespace osu.GameplayElements.Scoring.Processors
+                     change.ComboAtHit = 0;
+             }
+ 
+-
+             if ((change.HitValue & (IncreaseScoreType.SpinnerBonus | IncreaseScoreType.SpinnerSpinPoints)) > 0)
+                 BonusPortion += change.BaseHitValue;
+             else
+diff --git a/osu!/GameplayElements/Scoring/Score.cs b/osu!/GameplayElements/Scoring/Score.cs
+index 7f14429..3b8d525 100644
+--- a/osu!/GameplayElements/Scoring/Score.cs
++++ b/osu!/GameplayElements/Scoring/Score.cs
+@@ -318,6 +318,8 @@ namespace osu.GameplayElements.Scoring
+                 OnlineId = sr.ReadInt32();
+ 
+             ReadModSpecificData(sr);
++
++            ReadReplayData();
+         }
+ 
+         public void ReadHeaderFromStream(SerializationReader sr)
+@@ -361,6 +363,7 @@ namespace osu.GameplayElements.Scoring
+             sw.Write((int)(Mods)EnabledMods);
+             sw.Write(GetGraphFormatted());
+             sw.Write(Date);
++            ReplayCompressed = SevenZipHelper.Compress(new ASCIIEncoding().GetBytes(ReplayString));
+             sw.WriteByteArray(ReplayCompressed);
+             sw.Write(OnlineId);
+             WriteModSpecificData(sw);
+diff --git a/osu!/Graphics/Renderers/CursorTrailRenderer.cs b/osu!/Graphics/Renderers/CursorTrailRenderer.cs
+index ac21bb3..38eaaff 100644
+--- a/osu!/Graphics/Renderers/CursorTrailRenderer.cs
++++ b/osu!/Graphics/Renderers/CursorTrailRenderer.cs
+@@ -30,7 +30,7 @@ namespace osu.Graphics.Renderers
+         private int amountNewRanges = 0;
+         private int amountVisibleRanges = 0;
+ 
+-        const int MAX_SPRITES = 2048;
++        const int MAX_SPRITES = 4096;
+ 
+         private static readonly Shader cursorTrailShader;
+ 
+@@ -69,6 +69,9 @@ namespace osu.Graphics.Renderers
+             int vertexIndex = currentIndex * 4;
+             float fadeTime = fadeClock + 1f;
+ 
++            if (ConfigManager.sTrailSmooth)
++                fadeTime = fadeClock + 0.4f;
++
+             vertexBuffer.Vertices[vertexIndex].Position = offset + new Vector2(-drawSize / 2, -drawSize / 2);
+             vertexBuffer.Vertices[vertexIndex].TexturePosition = new Vector2(0, 0);
+             vertexBuffer.Vertices[vertexIndex].Colour = Color.White;
+@@ -141,6 +144,9 @@ namespace osu.Graphics.Renderers
+ 
+             fadeClock = (float)((GameBase.Time - timeOffset) / 500.0);
+ 
++            if (ConfigManager.sTrailSmooth)
++                fadeClock = (GameBase.Time - timeOffset) / 1000.0f;
++
+             int fadeClockResetThreshold = (GameBase.IdleTime > 60000 || !GameBase.Instance.IsActive) ? 10000 : 1000000;
+             if (fadeClock > fadeClockResetThreshold)
+                 ResetTime();
+diff --git a/osu!/Helpers/ErrorSubmission.cs b/osu!/Helpers/ErrorSubmission.cs
+index ad4d405..054e764 100644
+--- a/osu!/Helpers/ErrorSubmission.cs
++++ b/osu!/Helpers/ErrorSubmission.cs
+@@ -54,36 +54,37 @@ namespace osu.Helpers
+             {
+                 Logger.Log($@"ERROR (hard crash): {err.Feedback}", LoggingTarget.Runtime, LogLevel.Error);
+                 Logger.Log($@"ERROR (hard crash): {err.Exception}", LoggingTarget.Runtime, LogLevel.Error);
++                Logger.Log($@"ERROR (hard crash): {err.StackTrace}", LoggingTarget.Runtime, LogLevel.Error);
+             }
+             catch { }
+ 
+-            try
+-            {
+-                pWebRequest r = new pWebRequest(General.WEB_ROOT + "/web/osu-error.php");
+-                r.AddParameter("u", ConfigManager.sUsername);
+-                if (GameBase.User != null) r.AddParameter("i", GameBase.User.Id.ToString());
+-                r.AddParameter("osumode", ((int)GameBase.Mode).ToString());
+-                r.AddParameter("gamemode", ((int)Player.Mode).ToString());
+-                r.AddParameter("gametime", GameBase.Time.ToString());
+-                r.AddParameter("audiotime", AudioEngine.Time.ToString());
+-                r.AddParameter("culture", Thread.CurrentThread.CurrentCulture.Name);
+-                r.AddParameter("b", BeatmapManager.Current != null ? BeatmapManager.Current.BeatmapId.ToString() : "");
+-                r.AddParameter("bc", BeatmapManager.Current != null ? BeatmapManager.Current.BeatmapChecksum : "");
+-                r.AddParameter("exception", err.Exception);
+-                r.AddParameter("feedback", err.Feedback);
+-                r.AddParameter("stacktrace", err.StackTrace);
+-                r.AddParameter("iltrace", err.ILTrace);
+-                r.AddParameter("version", General.BUILD_NAME);
+-                r.AddParameter("exehash", GameBase.ExeHash(Path.GetFileName(OsuMain.FullPath)));
+-                r.AddParameter("config", File.ReadAllText(Path.Combine(OsuMain.UserPath, ConfigManager.UserConfigFilename)));
+-                if (err.Screenshot != null) r.AddFile(@"ss", err.Screenshot);
++            //try
++            //{
++            //    pWebRequest r = new pWebRequest(General.WEB_ROOT + "/web/osu-error.php");
++            //    r.AddParameter("u", ConfigManager.sUsername);
++            //    if (GameBase.User != null) r.AddParameter("i", GameBase.User.Id.ToString());
++            //    r.AddParameter("osumode", ((int)GameBase.Mode).ToString());
++            //    r.AddParameter("gamemode", ((int)Player.Mode).ToString());
++            //    r.AddParameter("gametime", GameBase.Time.ToString());
++            //    r.AddParameter("audiotime", AudioEngine.Time.ToString());
++            //    r.AddParameter("culture", Thread.CurrentThread.CurrentCulture.Name);
++            //    r.AddParameter("b", BeatmapManager.Current != null ? BeatmapManager.Current.BeatmapId.ToString() : "");
++            //    r.AddParameter("bc", BeatmapManager.Current != null ? BeatmapManager.Current.BeatmapChecksum : "");
++            //    r.AddParameter("exception", err.Exception);
++            //    r.AddParameter("feedback", err.Feedback);
++            //    r.AddParameter("stacktrace", err.StackTrace);
++            //    r.AddParameter("iltrace", err.ILTrace);
++            //    r.AddParameter("version", General.BUILD_NAME);
++            //    r.AddParameter("exehash", GameBase.ExeHash(Path.GetFileName(OsuMain.FullPath)));
++            //    r.AddParameter("config", File.ReadAllText(Path.Combine(OsuMain.UserPath, ConfigManager.UserConfigFilename)));
++            //    if (err.Screenshot != null) r.AddFile(@"ss", err.Screenshot);
+ 
+-                r.Timeout = 6000;
++            //    r.Timeout = 6000;
+ 
+-                r.BlockingPerform();
+-            }
+-            catch
+-            { }
++            //    r.BlockingPerform();
++            //}
++            //catch
++            //{ }
+         }
+     }
+ }
+\ No newline at end of file
+diff --git a/osu!/Input/InputManager.cs b/osu!/Input/InputManager.cs
+index a8ed8ce..dcae7a3 100644
+--- a/osu!/Input/InputManager.cs
++++ b/osu!/Input/InputManager.cs
+@@ -584,11 +584,15 @@ namespace osu.Input
+                 if (ScorableFrame)
+                     LastScorableFrameTime = AudioEngine.Time;
+ 
++                if (ConfigManager.sTrailNoFrameSkip)
++                    updateCursorTrail();
++
+             } while ((MouseManager.UpdateButtons() ||
+                      ((ReplayMode || !LocalInputPriority) && needsMoreFrames))
+                      && loopFrame++ < 30);
+ 
+-            updateCursorTrail();
++            if (!ConfigManager.sTrailNoFrameSkip)
++                updateCursorTrail();
+         }
+ 
+ 
+@@ -1258,6 +1262,9 @@ namespace osu.Input
+ 
+                 float acceptedWidth = (trailTexture.DisplayWidth * 0.625f * GameBase.WindowManager.Ratio * s_Cursor.Scale) / 2.5f;
+ 
++                if (ConfigManager.sTrailSmooth)
++                    acceptedWidth = (trailTexture.DisplayWidth * GameBase.WindowManager.Ratio * s_Cursor.Scale) / 10.5f;
++
+                 if (Vector2.Distance(lastTrailPosition, s_Cursor.Position) < acceptedWidth)
+                     return;
+ 
+diff --git a/osu!/Online/BanchoClient.cs b/osu!/Online/BanchoClient.cs
+index e6d52ce..f4bfb92 100644
+--- a/osu!/Online/BanchoClient.cs
++++ b/osu!/Online/BanchoClient.cs
+@@ -445,8 +445,9 @@ namespace osu.Online
+ 
+             InitializeGraphics();
+ 
++            aborted = true;
+             thread = GameBase.RunBackgroundThread(run);
+-            aborted = false;
++            //aborted = false;
+ 
+             return true;
+         }
+@@ -478,7 +479,7 @@ namespace osu.Online
+         {
+             Initialize();
+ 
+-            connect();
++            //connect();
+ 
+             while (true)
+             {
+diff --git a/osu!common/Helpers/Logger.cs b/osu!common/Helpers/Logger.cs
+index 8379439..041e5ab 100644
+--- a/osu!common/Helpers/Logger.cs
++++ b/osu!common/Helpers/Logger.cs
+@@ -38,6 +38,8 @@ namespace osu_common.Helpers
+         /// </summary>
+         public static string VersionIdentifier = @"unknown";
+ 
++        public static bool SynchronousLog = false;
++
+         /// <summary>
+         /// Add a plain-text phrase which should always be filtered from logs.
+         /// Useful for avoiding logging of credentials.
+@@ -144,7 +146,7 @@ namespace osu_common.Helpers
+                 lines[i] = $@"{DateTime.UtcNow.ToString(OsuCommon.nfi)}: {s.Trim()}";
+             }
+ 
+-            backgroundScheduler.Add(delegate
++            if (SynchronousLog)
+             {
+                 ensureLogDirectoryExists();
+                 if (!hasLogDirectory.Value)
+@@ -155,7 +157,22 @@ namespace osu_common.Helpers
+                     File.AppendAllLines(Filename, lines);
+                 }
+                 catch { }
+-            }, true);
++            }
++            else
++            {
++                backgroundScheduler.Add(delegate
++                {
++                    ensureLogDirectoryExists();
++                    if (!hasLogDirectory.Value)
++                        return;
++
++                    try
++                    {
++                        File.AppendAllLines(Filename, lines);
++                    }
++                    catch { }
++                }, true);
++            }
+         }
+ 
+         /// <summary>
+-- 
+2.19.1
+
